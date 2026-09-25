@@ -8,7 +8,6 @@ const GLOBAL_PADDING: u16 = 1;
 struct Coordinator {
     source: String,
     target: String,
-
     exit: bool,
 }
 
@@ -34,8 +33,8 @@ impl Coordinator {
                 GLOBAL_PADDING,
             ));
 
-        let text = Paragraph::new("Hello, world!")
-            .style(Style::default().fg(Color::Red))
+        let text = Paragraph::new(self.target.as_str())
+            .style(Style::default().fg(Color::Gray))
             .block(block);
 
         frame.render_widget(text, frame.area());
@@ -43,7 +42,13 @@ impl Coordinator {
 }
 
 fn main() -> color_eyre::Result<()> {
+    let mut coordinator = Coordinator {
+        source: String::new(),
+        target: String::from("The quick brown fox jumps over the lazy dog."),
+        exit: false,
+    };
+
     color_eyre::install()?;
-    ratatui::run(|terminal| Coordinator::default().run(terminal))?;
+    ratatui::run(|terminal| coordinator.run(terminal))?;
     Ok(())
 }
