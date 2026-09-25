@@ -61,17 +61,11 @@ impl Coordinator {
     fn handle_key_event(&mut self, key_event: KeyEvent) {
         match key_event.code {
             KeyCode::Esc => self.exit = true,
-            KeyCode::Char(c) => {
-                if c == ' ' && (self.source.len() == 0 || self.source.chars().last().is_some()) {
-                    return;
-                }
-
-                self.source.push(c);
-            }
+            KeyCode::Char(' ') if self.source.len() == 0 => (),
+            KeyCode::Char(' ') if self.source.chars().last().is_some_and(|x| x == ' ') => (),
+            KeyCode::Char(c) => self.source.push(c),
             KeyCode::Backspace => {
                 self.source.pop();
-
-                ()
             }
             _ => {}
         }
