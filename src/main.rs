@@ -68,6 +68,11 @@ impl Coordinator {
 
                 self.source.push(c);
             }
+            KeyCode::Backspace => {
+                self.source.pop();
+
+                ()
+            }
             _ => {}
         }
     }
