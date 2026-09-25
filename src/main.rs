@@ -1,4 +1,6 @@
+use crossterm::event::{self, Event, KeyCode, KeyEvent, KeyEventKind};
 use ratatui::style::{Color, Style};
+use ratatui::text::{Line, Span};
 use ratatui::widgets::{Block, Borders, Padding, Paragraph};
 use ratatui::{DefaultTerminal, Frame};
 
@@ -15,11 +17,8 @@ impl Coordinator {
     fn run(&mut self, terminal: &mut DefaultTerminal) -> std::io::Result<()> {
         while !self.exit {
             terminal.draw(|frame| self.draw(frame))?;
-            if crossterm::event::read()?.is_key_press() {
-                self.exit = true;
-            }
+            self.handle_events()?;
         }
-
         Ok(())
     }
 
@@ -33,11 +32,38 @@ impl Coordinator {
                 GLOBAL_PADDING,
             ));
 
-        let text = Paragraph::new(self.target.as_str())
-            .style(Style::default().fg(Color::Gray))
-            .block(block);
+        let source = Line::from(Span::styled(
+            self.source.as_str(),
+            Style::default().fg(Color::White),
+        ));
+        let target = Line::from(Span::styled(
+            self.target.as_str(),
+            Style::default().fg(Color::Gray),
+        ));
+
+        let text = Paragraph::new(vec![source, target]).block(block);
 
         frame.render_widget(text, frame.area());
+    }
+
+    fn handle_events(&mut self) -> std::io::Result<()> {
+        match event::read()? {
+            Event::Key(key_event) if key_event.kind == KeyEventKind::Press => {
+                self.handle_key_event(key_event)
+            }
+            _ => {}
+        };
+        Ok(())
+    }
+
+    fn handle_key_event(&mut self, key_event: KeyEvent) {
+        match key_event.code {
+            KeyCode::Esc => self.exit = true,
+            KeyCode::Char(c) => {
+                self.source.push(c);
+            }
+            _ => {}
+        }
     }
 }
 
