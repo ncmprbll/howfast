@@ -19,6 +19,7 @@ impl Coordinator {
             terminal.draw(|frame| self.draw(frame))?;
             self.handle_events()?;
         }
+
         Ok(())
     }
 
@@ -53,6 +54,7 @@ impl Coordinator {
             }
             _ => {}
         };
+
         Ok(())
     }
 
@@ -60,6 +62,10 @@ impl Coordinator {
         match key_event.code {
             KeyCode::Esc => self.exit = true,
             KeyCode::Char(c) => {
+                if c == ' ' && (self.source.len() == 0 || self.source.chars().last().is_some()) {
+                    return;
+                }
+
                 self.source.push(c);
             }
             _ => {}
