@@ -1,7 +1,7 @@
 use crossterm::event::{self, Event, KeyCode, KeyEvent, KeyEventKind};
 use ratatui::style::{Color, Style};
 use ratatui::text::{Line, Span};
-use ratatui::widgets::{Block, Borders, Padding, Paragraph};
+use ratatui::widgets::{Block, Borders, Padding, Paragraph, Wrap};
 use ratatui::{DefaultTerminal, Frame};
 
 const GLOBAL_PADDING: u16 = 1;
@@ -42,7 +42,62 @@ impl Coordinator {
             Style::default().fg(Color::Gray),
         ));
 
-        let text = Paragraph::new(vec![source, target]).block(block);
+        let s1: Vec<&str> = self.source.split(' ').collect();
+        let s2: Vec<&str> = self.target.split(' ').collect();
+        let mut s3: Vec<Span> = Vec::new();
+
+        for i in 0..s2.len() {
+            if i >= s1.len() {
+                s3.push(Span::styled(s2[i], Style::default().fg(Color::Gray)));
+
+                s3.push(Span::styled(" ".to_string(), Style::default()));
+
+                continue;
+            }
+
+            let source_word: Vec<char> = s1[i].chars().collect();
+            let target_word: Vec<char> = s2[i].chars().collect();
+
+            for j in 0..target_word.len() {
+                if j >= source_word.len() {
+                    s3.push(Span::styled(
+                        target_word[j].to_string(),
+                        Style::default().fg(Color::Gray),
+                    ));
+
+                    continue;
+                }
+
+                if source_word[j] != target_word[j] {
+                    s3.push(Span::styled(
+                        target_word[j].to_string(),
+                        Style::default().fg(Color::Red),
+                    ))
+                } else {
+                    s3.push(Span::styled(
+                        target_word[j].to_string(),
+                        Style::default().fg(Color::White),
+                    ))
+                }
+            }
+
+            if source_word.len() > target_word.len() {
+                for j in target_word.len()..source_word.len() {
+                    s3.push(Span::styled(
+                        source_word[j].to_string(),
+                        Style::default().fg(Color::LightRed),
+                    ))
+                }
+            }
+
+            s3.push(Span::styled(" ".to_string(), Style::default()))
+        }
+
+        let target = Line::from(s3);
+
+        let text = Paragraph::new(vec![source, target])
+            .block(block)
+            .wrap(Wrap { trim: true });
 
         frame.render_widget(text, frame.area());
     }
