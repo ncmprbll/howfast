@@ -1,4 +1,4 @@
-use crossterm::event::{self, Event, KeyCode, KeyEvent, KeyEventKind};
+use crossterm::event::{self, Event, KeyCode, KeyEvent, KeyEventKind, KeyModifiers};
 use ratatui::style::{Color, Style};
 use ratatui::text::{Line, Span};
 use ratatui::widgets::{Block, Borders, Padding, Paragraph, Wrap};
@@ -144,6 +144,26 @@ impl Coordinator {
     fn handle_key_event(&mut self, key_event: KeyEvent) {
         match key_event.code {
             KeyCode::Esc => self.exit = true,
+            KeyCode::Char('c') if key_event.modifiers.contains(KeyModifiers::CONTROL) => {
+                self.exit = true
+            }
+            KeyCode::Char('w') | KeyCode::Char('h')
+                if key_event.modifiers.contains(KeyModifiers::CONTROL) =>
+            {
+                if let Some(' ') = self.source.chars().last() {
+                    self.source.pop();
+                }
+
+                let boundary_index = self.source.rfind(|c: char| c.is_whitespace()).unwrap_or(0);
+
+                // Truncate to the nearest space character, while
+                // also keeping it intact
+                self.source.truncate(if boundary_index == 0 {
+                    boundary_index
+                } else {
+                    boundary_index + 1
+                });
+            }
             KeyCode::Char(' ') if self.source.len() == 0 => (),
             KeyCode::Char(' ') if self.source.chars().last().is_some_and(|x| x == ' ') => (),
             KeyCode::Char(c) => self.source.push(c),
