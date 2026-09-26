@@ -70,7 +70,7 @@ impl Coordinator {
 
             for j in 0..target_word.len() {
                 if j >= source_word.len() {
-                    if !has_cursor {
+                    if !has_cursor && i == s1.len() - 1 {
                         s3.push(Span::styled(
                             target_word[j].to_string(),
                             Style::default().fg(Color::Black).bg(Color::White),
