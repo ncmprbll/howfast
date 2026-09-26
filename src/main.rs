@@ -68,32 +68,41 @@ impl Coordinator {
             let source_word: Vec<char> = s1[i].chars().collect();
             let target_word: Vec<char> = s2[i].chars().collect();
 
+            let mut span_group = Vec::new();
+            let mut has_mistake: bool = false;
+
             for j in 0..target_word.len() {
                 if j >= source_word.len() {
                     if !has_cursor && i == s1.len() - 1 {
-                        s3.push(Span::styled(
+                        span_group.push(Span::styled(
                             target_word[j].to_string(),
                             Style::default().fg(Color::Black).bg(Color::White),
                         ));
 
                         has_cursor = true;
                     } else {
-                        s3.push(Span::styled(
+                        span_group.push(Span::styled(
                             target_word[j].to_string(),
                             Style::default().fg(Color::Gray),
                         ));
+
+                        if i != s1.len() - 1 {
+                            has_mistake = true;
+                        }
                     }
 
                     continue;
                 }
 
                 if source_word[j] != target_word[j] {
-                    s3.push(Span::styled(
+                    span_group.push(Span::styled(
                         target_word[j].to_string(),
                         Style::default().fg(Color::Red),
-                    ))
+                    ));
+
+                    has_mistake = true;
                 } else {
-                    s3.push(Span::styled(
+                    span_group.push(Span::styled(
                         target_word[j].to_string(),
                         Style::default().fg(Color::White),
                     ))
@@ -102,12 +111,22 @@ impl Coordinator {
 
             if source_word.len() > target_word.len() {
                 for j in target_word.len()..source_word.len() {
-                    s3.push(Span::styled(
+                    span_group.push(Span::styled(
                         source_word[j].to_string(),
                         Style::default().fg(Color::LightRed),
-                    ))
+                    ));
+
+                    has_mistake = true;
                 }
             }
+
+            span_group.into_iter().for_each(|x| {
+                if has_mistake {
+                    s3.push(x.clone().style(x.style.underlined()));
+                } else {
+                    s3.push(x);
+                };
+            });
 
             if !has_cursor && i == s1.len() - 1 {
                 s3.push(Span::styled(
