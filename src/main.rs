@@ -37,10 +37,6 @@ impl Coordinator {
             self.source.as_str(),
             Style::default().fg(Color::White),
         ));
-        let target = Line::from(Span::styled(
-            self.target.as_str(),
-            Style::default().fg(Color::Gray),
-        ));
 
         let s1: Vec<&str> = self.source.split(' ').collect();
         let s2: Vec<&str> = self.target.split(' ').collect();
@@ -50,7 +46,10 @@ impl Coordinator {
         for i in 0..s2.len() {
             if !has_cursor && i == s1.len() {
                 s3.push(Span::styled(
-                    s2[i].chars().nth(0).unwrap().to_string(),
+                    match s2[i].chars().nth(0) {
+                        Some(c) => c.to_string(),
+                        None => continue,
+                    },
                     Style::default().fg(Color::Black).bg(Color::White),
                 ));
                 s3.push(Span::styled(&s2[i][1..], Style::default().fg(Color::Gray)));
