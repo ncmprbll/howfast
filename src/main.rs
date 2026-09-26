@@ -45,11 +45,22 @@ impl Coordinator {
         let s1: Vec<&str> = self.source.split(' ').collect();
         let s2: Vec<&str> = self.target.split(' ').collect();
         let mut s3: Vec<Span> = Vec::new();
+        let mut has_cursor: bool = false;
 
         for i in 0..s2.len() {
-            if i >= s1.len() {
-                s3.push(Span::styled(s2[i], Style::default().fg(Color::Gray)));
+            if !has_cursor && i == s1.len() {
+                s3.push(Span::styled(
+                    s2[i].chars().nth(0).unwrap().to_string(),
+                    Style::default().fg(Color::Black).bg(Color::White),
+                ));
+                s3.push(Span::styled(&s2[i][1..], Style::default().fg(Color::Gray)));
+                s3.push(Span::styled(" ".to_string(), Style::default()));
 
+                has_cursor = true;
+
+                continue;
+            } else if i >= s1.len() {
+                s3.push(Span::styled(s2[i], Style::default().fg(Color::Gray)));
                 s3.push(Span::styled(" ".to_string(), Style::default()));
 
                 continue;
@@ -60,10 +71,19 @@ impl Coordinator {
 
             for j in 0..target_word.len() {
                 if j >= source_word.len() {
-                    s3.push(Span::styled(
-                        target_word[j].to_string(),
-                        Style::default().fg(Color::Gray),
-                    ));
+                    if !has_cursor {
+                        s3.push(Span::styled(
+                            target_word[j].to_string(),
+                            Style::default().fg(Color::Black).bg(Color::White),
+                        ));
+
+                        has_cursor = true;
+                    } else {
+                        s3.push(Span::styled(
+                            target_word[j].to_string(),
+                            Style::default().fg(Color::Gray),
+                        ));
+                    }
 
                     continue;
                 }
@@ -90,7 +110,16 @@ impl Coordinator {
                 }
             }
 
-            s3.push(Span::styled(" ".to_string(), Style::default()))
+            if !has_cursor && i == s1.len() - 1 {
+                s3.push(Span::styled(
+                    " ".to_string(),
+                    Style::default().bg(Color::White),
+                ));
+
+                has_cursor = true;
+            } else {
+                s3.push(Span::styled(" ".to_string(), Style::default()))
+            }
         }
 
         let target = Line::from(s3);
