@@ -1,4 +1,6 @@
+use color_eyre::eyre::eyre;
 use crossterm::event::{self, Event, KeyCode, KeyEvent, KeyEventKind, KeyModifiers};
+use rand::rand_core::utils::Word;
 use ratatui::layout::{Constraint, Direction, Layout};
 use ratatui::style::{Color, Style};
 use ratatui::text::{Line, Span};
@@ -195,10 +197,26 @@ impl Coordinator {
     }
 }
 
+use rand::seq::{IteratorRandom, SliceRandom};
+
 fn main() -> color_eyre::Result<()> {
+    const WORDS: usize = 256;
+
+    let dictionary = vec![
+        "the", "quick", "brown", "fox", "jumps", "over", "the", "lazy", "dog",
+    ];
+
+    let target = (0..WORDS)
+        .map(|_| dictionary.iter().choose(&mut rand::rng()).unwrap())
+        .collect::<Vec<&&str>>()
+        .into_iter()
+        .map(|&x| x)
+        .collect::<Vec<&str>>()
+        .join(" ");
+
     let mut coordinator = Coordinator {
         source: String::new(),
-        target: String::from("The quick brown fox jumps over the lazy dog."),
+        target: target,
         exit: false,
     };
 
