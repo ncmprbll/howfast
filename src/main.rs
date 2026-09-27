@@ -1,6 +1,5 @@
-use color_eyre::eyre::eyre;
 use crossterm::event::{self, Event, KeyCode, KeyEvent, KeyEventKind, KeyModifiers};
-use rand::rand_core::utils::Word;
+use rand::seq::IteratorRandom;
 use ratatui::layout::{Constraint, Direction, Layout};
 use ratatui::style::{Color, Style};
 use ratatui::text::{Line, Span};
@@ -140,16 +139,22 @@ impl Coordinator {
 
         let target = Line::from(s3);
 
-        let text = Paragraph::new(vec![source, target])
+        let layout = Layout::default()
+            .direction(Direction::Horizontal)
+            .constraints(vec![Constraint::Percentage(50), Constraint::Percentage(50)])
+            .split(frame.area());
+
+        let paragraph = Paragraph::new(target)
             .block(block)
             .wrap(Wrap { trim: true });
 
-        let layout = Layout::default()
-            .direction(Direction::Horizontal)
-            .constraints(vec![Constraint::Percentage(50)])
-            .split(frame.area());
+        let debug = Paragraph::new(vec![
+            source,
+            Line::from(format!("{}", paragraph.line_count(layout[0].width))),
+        ]);
 
-        frame.render_widget(text, layout[0]);
+        frame.render_widget(paragraph, layout[0]);
+        frame.render_widget(debug, layout[1]);
     }
 
     fn handle_events(&mut self) -> std::io::Result<()> {
@@ -196,8 +201,6 @@ impl Coordinator {
         }
     }
 }
-
-use rand::seq::{IteratorRandom, SliceRandom};
 
 fn main() -> color_eyre::Result<()> {
     const WORDS: usize = 256;
