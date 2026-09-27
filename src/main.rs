@@ -215,7 +215,7 @@ fn main() -> color_eyre::Result<()> {
         .join(" ");
 
     let mut coordinator = Coordinator {
-        source: String::new(),
+        source: String::with_capacity(target.capacity()),
         target: target,
         exit: false,
     };
