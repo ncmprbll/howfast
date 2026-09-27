@@ -1,10 +1,11 @@
 use crossterm::event::{self, Event, KeyCode, KeyEvent, KeyEventKind, KeyModifiers};
+use ratatui::layout::{Constraint, Direction, Layout};
 use ratatui::style::{Color, Style};
 use ratatui::text::{Line, Span};
 use ratatui::widgets::{Block, Borders, Padding, Paragraph, Wrap};
 use ratatui::{DefaultTerminal, Frame};
 
-const GLOBAL_PADDING: u16 = 1;
+const PADDING: u16 = 1;
 
 #[derive(Debug, Default)]
 struct Coordinator {
@@ -26,12 +27,7 @@ impl Coordinator {
     fn draw(&self, frame: &mut Frame) {
         let block = Block::default()
             .borders(Borders::NONE)
-            .padding(Padding::new(
-                GLOBAL_PADDING,
-                GLOBAL_PADDING,
-                GLOBAL_PADDING,
-                GLOBAL_PADDING,
-            ));
+            .padding(Padding::uniform(PADDING));
 
         let source = Line::from(Span::styled(
             self.source.as_str(),
@@ -146,7 +142,12 @@ impl Coordinator {
             .block(block)
             .wrap(Wrap { trim: true });
 
-        frame.render_widget(text, frame.area());
+        let layout = Layout::default()
+            .direction(Direction::Horizontal)
+            .constraints(vec![Constraint::Percentage(50)])
+            .split(frame.area());
+
+        frame.render_widget(text, layout[0]);
     }
 
     fn handle_events(&mut self) -> std::io::Result<()> {
