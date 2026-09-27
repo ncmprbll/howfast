@@ -4,6 +4,7 @@ version = "0.1.0"
 edition = "2024"
 
 [dependencies]
+rand = "0.10.3"
 color-eyre = "0.6.5"
 ratatui = "0.30.2"
 crossterm = "0.29.0"
