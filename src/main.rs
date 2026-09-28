@@ -49,14 +49,17 @@ impl Coordinator {
                     },
                     Style::default().fg(Color::Black).bg(Color::White),
                 ));
-                s3.push(Span::styled(&s2[i][1..], Style::default().fg(Color::Gray)));
+                s3.push(Span::styled(
+                    &s2[i][1..],
+                    Style::default().fg(Color::DarkGray),
+                ));
                 s3.push(Span::styled(" ".to_string(), Style::default()));
 
                 has_cursor = true;
 
                 continue;
             } else if i >= s1.len() {
-                s3.push(Span::styled(s2[i], Style::default().fg(Color::Gray)));
+                s3.push(Span::styled(s2[i], Style::default().fg(Color::DarkGray)));
                 s3.push(Span::styled(" ".to_string(), Style::default()));
 
                 continue;
@@ -80,7 +83,7 @@ impl Coordinator {
                     } else {
                         span_group.push(Span::styled(
                             target_word[j].to_string(),
-                            Style::default().fg(Color::Gray),
+                            Style::default().fg(Color::DarkGray),
                         ));
 
                         if i != s1.len() - 1 {
@@ -148,10 +151,29 @@ impl Coordinator {
             .block(block)
             .wrap(Wrap { trim: true });
 
+        let source_spaces_count = self.source.chars().filter(|&x| x == ' ').count();
+        let target_characters_up_to_n = self
+            .target
+            .split(" ")
+            .take(source_spaces_count + 1)
+            .map(|x| x.len())
+            .reduce(|acc, v| acc + v)
+            .unwrap_or(0)
+            + source_spaces_count;
+
         let debug = Paragraph::new(vec![
             source,
-            Line::from(format!("{}", paragraph.line_count(layout[0].width))),
+            Line::from(format!(
+                "{} {}",
+                paragraph.line_count(layout[0].width),
+                target_characters_up_to_n / layout[0].width as usize
+            )),
         ]);
+
+        let paragraph = paragraph.scroll((
+            (target_characters_up_to_n / layout[0].width as usize) as u16,
+            0,
+        ));
 
         frame.render_widget(paragraph, layout[0]);
         frame.render_widget(debug, layout[1]);
