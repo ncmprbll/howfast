@@ -6,7 +6,7 @@ use ratatui::text::{Line, Span};
 use ratatui::widgets::{Block, Borders, Padding, Paragraph, Wrap};
 use ratatui::{DefaultTerminal, Frame};
 
-const PADDING: u16 = 1;
+const PADDING: u16 = 4;
 
 #[derive(Debug, Default)]
 struct Coordinator {
@@ -143,7 +143,8 @@ impl Coordinator {
             }
         }
 
-        let phantom_target = Line::from(&s3.clone()[..cursor_at + 1]);
+        let s3_clone = s3.clone();
+        let phantom_target = Line::from(&s3_clone.clone()[..cursor_at + 1]);
         let target = Line::from(s3);
 
         let layout = Layout::default()
@@ -152,7 +153,7 @@ impl Coordinator {
             .split(frame.area());
 
         let phantom_paragraph = Paragraph::new(phantom_target)
-            .block(block.clone())
+            // .block(block.clone())
             .wrap(Wrap { trim: true });
 
         let paragraph = Paragraph::new(target)
@@ -173,17 +174,21 @@ impl Coordinator {
         let debug = Paragraph::new(vec![
             source,
             Line::from(format!(
-                "{} {} {}",
+                "{} {} {} {} {} {:?}",
                 paragraph.line_count(layout[0].width - PADDING * 2),
                 ((cursor_at / layout[0].width.saturating_sub(PADDING * 2) as usize) as u16),
-                phantom_paragraph.line_count(layout[0].width - PADDING * 2),
+                layout[0].width - PADDING * 2,
+                phantom_paragraph.line_count(block.inner(layout[0]).width),
+                block.inner(layout[0]).width,
+                &s3_clone[..cursor_at + 1],
             )),
-        ]);
+        ])
+        .wrap(Wrap { trim: true });
 
         let paragraph = paragraph.scroll((
             phantom_paragraph
                 .line_count(layout[0].width - PADDING * 2)
-                .saturating_sub(4) as u16,
+                .saturating_sub(2) as u16,
             // ((cursor_at / layout[0].width.saturating_sub(PADDING * 2) as usize) as u16)
             //     .saturating_sub(1),
             0,
