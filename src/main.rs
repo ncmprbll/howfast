@@ -6,7 +6,7 @@ use ratatui::text::{Line, Span};
 use ratatui::widgets::{Block, Borders, Padding, Paragraph, Wrap};
 use ratatui::{DefaultTerminal, Frame};
 
-const PADDING: u16 = 4;
+const PADDING: u16 = 1;
 
 #[derive(Debug, Default)]
 struct Coordinator {
@@ -152,6 +152,15 @@ impl Coordinator {
             .constraints(vec![Constraint::Percentage(50), Constraint::Percentage(50)])
             .split(frame.area());
 
+        let vertical_layout = Layout::default()
+            .direction(Direction::Vertical)
+            .constraints(vec![
+                Constraint::Length(1),
+                Constraint::Length(1),
+                Constraint::Fill(1),
+            ])
+            .split(layout[0]);
+
         let phantom_paragraph = Paragraph::new(phantom_target)
             // .block(block.clone())
             .wrap(Wrap { trim: true });
@@ -194,7 +203,11 @@ impl Coordinator {
             0,
         ));
 
-        frame.render_widget(paragraph, layout[0]);
+        frame.render_widget(
+            Paragraph::new(Line::from(" howfast | 30s")),
+            vertical_layout[1],
+        );
+        frame.render_widget(paragraph, vertical_layout[2]);
         frame.render_widget(debug, layout[1]);
     }
 
