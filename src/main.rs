@@ -39,6 +39,7 @@ impl Coordinator {
         let s2: Vec<&str> = self.target.split(' ').collect();
         let mut s3: Vec<Span> = Vec::new();
         let mut has_cursor: bool = false;
+        let mut cursor_at: usize = 0;
 
         for i in 0..s2.len() {
             if !has_cursor && i == s1.len() {
@@ -49,13 +50,13 @@ impl Coordinator {
                     },
                     Style::default().fg(Color::Black).bg(Color::White),
                 ));
-                s3.push(Span::styled(
-                    &s2[i][1..],
-                    Style::default().fg(Color::DarkGray),
-                ));
+                for j in 1..s2.len() {
+                    s3.push(Span::styled(s2[j], Style::default().fg(Color::DarkGray)));
+                }
                 s3.push(Span::styled(" ".to_string(), Style::default()));
 
                 has_cursor = true;
+                cursor_at = s3.len() - 1;
 
                 continue;
             } else if i >= s1.len() {
@@ -80,6 +81,7 @@ impl Coordinator {
                         ));
 
                         has_cursor = true;
+                        cursor_at = s3.len() + span_group.len() - 1;
                     } else {
                         span_group.push(Span::styled(
                             target_word[j].to_string(),
@@ -135,11 +137,13 @@ impl Coordinator {
                 ));
 
                 has_cursor = true;
+                cursor_at = s3.len() - 1;
             } else {
                 s3.push(Span::styled(" ".to_string(), Style::default()))
             }
         }
 
+        let phantom_target = Line::from(&s3.clone()[..cursor_at + 1]);
         let target = Line::from(s3);
 
         let layout = Layout::default()
@@ -147,31 +151,41 @@ impl Coordinator {
             .constraints(vec![Constraint::Percentage(50), Constraint::Percentage(50)])
             .split(frame.area());
 
+        let phantom_paragraph = Paragraph::new(phantom_target)
+            .block(block.clone())
+            .wrap(Wrap { trim: true });
+
         let paragraph = Paragraph::new(target)
-            .block(block)
+            .block(block.clone())
             .wrap(Wrap { trim: true });
 
         let source_spaces_count = self.source.chars().filter(|&x| x == ' ').count();
-        let target_characters_up_to_n = self
+        let characters_up_to_cursor = (self
             .target
             .split(" ")
             .take(source_spaces_count + 1)
             .map(|x| x.len())
             .reduce(|acc, v| acc + v)
             .unwrap_or(0)
-            + source_spaces_count;
+            + source_spaces_count)
+            .max(self.source.len());
 
         let debug = Paragraph::new(vec![
             source,
             Line::from(format!(
-                "{} {}",
-                paragraph.line_count(layout[0].width),
-                target_characters_up_to_n / layout[0].width as usize
+                "{} {} {}",
+                paragraph.line_count(layout[0].width - PADDING * 2),
+                ((cursor_at / layout[0].width.saturating_sub(PADDING * 2) as usize) as u16),
+                phantom_paragraph.line_count(layout[0].width - PADDING * 2),
             )),
         ]);
 
         let paragraph = paragraph.scroll((
-            (target_characters_up_to_n / layout[0].width as usize) as u16,
+            phantom_paragraph
+                .line_count(layout[0].width - PADDING * 2)
+                .saturating_sub(4) as u16,
+            // ((cursor_at / layout[0].width.saturating_sub(PADDING * 2) as usize) as u16)
+            //     .saturating_sub(1),
             0,
         ));
 
