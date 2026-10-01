@@ -1,14 +1,17 @@
 use crossterm::event::{self, Event, KeyCode, KeyEvent, KeyEventKind, KeyModifiers};
 use rand::seq::IteratorRandom;
 use ratatui::layout::{Constraint, Direction, Layout};
-use ratatui::style::{Color, Style, Stylize};
+use ratatui::style::{Color, Style};
 use ratatui::text::{Line, Span};
 use ratatui::widgets::{Block, Borders, Padding, Paragraph, Wrap};
 use ratatui::{DefaultTerminal, Frame};
 use std::ops::{Add, Sub};
-use std::time;
+use std::time::{Duration, Instant};
 
 const PADDING: u16 = 1;
+/// The amount of seconds you get for typing
+const TYPING_TIME: Duration = Duration::from_secs(15);
+const POLLING_TIME: Duration = Duration::from_millis(200);
 
 #[derive(Debug)]
 struct Coordinator {
@@ -16,7 +19,7 @@ struct Coordinator {
     target: String,
     exit: bool,
     started: bool,
-    ends_at: time::Instant,
+    ends_at: Instant,
 }
 
 impl Coordinator {
@@ -211,10 +214,11 @@ impl Coordinator {
             Paragraph::new(Line::from(format!(
                 " howfast | {}s",
                 if !self.started {
-                    30
+                    TYPING_TIME
                 } else {
-                    self.ends_at.sub(time::Instant::now()).as_secs()
+                    self.ends_at.sub(Instant::now())
                 }
+                .as_secs()
             ))),
             vertical_layout[1],
         );
@@ -223,6 +227,10 @@ impl Coordinator {
     }
 
     fn handle_events(&mut self) -> std::io::Result<()> {
+        if !event::poll(POLLING_TIME)? {
+            return Ok(());
+        }
+
         match event::read()? {
             Event::Key(key_event) if key_event.kind == KeyEventKind::Press => {
                 self.handle_key_event(key_event)
@@ -261,7 +269,7 @@ impl Coordinator {
             KeyCode::Char(c) => {
                 if !self.started {
                     self.started = true;
-                    self.ends_at = time::Instant::now().add(time::Duration::from_secs(30))
+                    self.ends_at = Instant::now().add(TYPING_TIME)
                 }
                 self.source.push(c);
             }
@@ -293,7 +301,7 @@ fn main() -> color_eyre::Result<()> {
         target: target,
         exit: false,
         started: false,
-        ends_at: time::Instant::now(),
+        ends_at: Instant::now(),
     };
 
     color_eyre::install()?;
