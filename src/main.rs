@@ -25,6 +25,10 @@ struct Coordinator {
 impl Coordinator {
     fn run(&mut self, terminal: &mut DefaultTerminal) -> std::io::Result<()> {
         while !self.exit {
+            if self.started && Instant::now() >= self.ends_at {
+                self.exit = true
+            }
+
             terminal.draw(|frame| self.draw(frame))?;
             self.handle_events()?;
         }
