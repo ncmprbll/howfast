@@ -1,18 +1,22 @@
 use crossterm::event::{self, Event, KeyCode, KeyEvent, KeyEventKind, KeyModifiers};
 use rand::seq::IteratorRandom;
 use ratatui::layout::{Constraint, Direction, Layout};
-use ratatui::style::{Color, Style};
+use ratatui::style::{Color, Style, Stylize};
 use ratatui::text::{Line, Span};
 use ratatui::widgets::{Block, Borders, Padding, Paragraph, Wrap};
 use ratatui::{DefaultTerminal, Frame};
+use std::ops::{Add, Sub};
+use std::time;
 
 const PADDING: u16 = 1;
 
-#[derive(Debug, Default)]
+#[derive(Debug)]
 struct Coordinator {
     source: String,
     target: String,
     exit: bool,
+    started: bool,
+    ends_at: time::Instant,
 }
 
 impl Coordinator {
@@ -204,7 +208,14 @@ impl Coordinator {
         ));
 
         frame.render_widget(
-            Paragraph::new(Line::from(" howfast | 30s")),
+            Paragraph::new(Line::from(format!(
+                " howfast | {}s",
+                if !self.started {
+                    30
+                } else {
+                    self.ends_at.sub(time::Instant::now()).as_secs()
+                }
+            ))),
             vertical_layout[1],
         );
         frame.render_widget(paragraph, vertical_layout[2]);
@@ -247,7 +258,13 @@ impl Coordinator {
             }
             KeyCode::Char(' ') if self.source.len() == 0 => (),
             KeyCode::Char(' ') if self.source.chars().last().is_some_and(|x| x == ' ') => (),
-            KeyCode::Char(c) => self.source.push(c),
+            KeyCode::Char(c) => {
+                if !self.started {
+                    self.started = true;
+                    self.ends_at = time::Instant::now().add(time::Duration::from_secs(30))
+                }
+                self.source.push(c);
+            }
             KeyCode::Backspace => {
                 self.source.pop();
             }
@@ -275,6 +292,8 @@ fn main() -> color_eyre::Result<()> {
         source: String::with_capacity(target.capacity()),
         target: target,
         exit: false,
+        started: false,
+        ends_at: time::Instant::now(),
     };
 
     color_eyre::install()?;
