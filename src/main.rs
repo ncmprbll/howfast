@@ -26,7 +26,7 @@ impl Coordinator {
     fn run(
         &mut self,
         terminal: &mut DefaultTerminal,
-    ) -> std::io::Result<(f64, &str, &str, &str, &str, &str)> {
+    ) -> std::io::Result<(f64, &str, usize, usize, usize, usize)> {
         while !self.exit {
             if self.started && Instant::now() >= self.ends_at {
                 self.exit = true
@@ -36,13 +36,31 @@ impl Coordinator {
             self.handle_events()?;
         }
 
-        let source_iter = self.source.split(" ");
-        let target_iter = self.target.split(" ");
+        let source_iter = self.source.split(" ").filter(|&x| x != "");
+        let target_iter = self.target.split(" ").filter(|&x| x != "");
 
-        let correct_words = source_iter
+        let stats = source_iter
             .zip(target_iter)
-            .fold(0, |acc: usize, (src, trg)| {
-                acc.add(if src == trg { 1 } else { 0 })
+            .fold((0, 0, 0, 0, 0), |acc, (src, trg)| {
+                (
+                    acc.0.add(if src == trg { 1 } else { 0 }),
+                    acc.1.add(
+                        src.chars()
+                            .take(trg.len())
+                            .zip(trg.chars())
+                            .filter(|(x, y)| x == y)
+                            .count(),
+                    ),
+                    acc.2.add(
+                        src.chars()
+                            .take(trg.len())
+                            .zip(trg.chars())
+                            .filter(|(x, y)| x != y)
+                            .count(),
+                    ),
+                    acc.3.add(src.len().saturating_sub(trg.len())),
+                    acc.4.add(trg.len().saturating_sub(src.len())),
+                )
             });
 
         let typing_time = Instant::now()
@@ -51,12 +69,12 @@ impl Coordinator {
             .as_micros();
 
         Ok((
-            (correct_words * 60000000) as f64 / typing_time as f64,
+            (stats.0 * 60000000) as f64 / typing_time as f64,
             "82",
-            "74",
-            "0",
-            "1",
-            "10",
+            stats.1,
+            stats.2,
+            stats.3,
+            stats.4,
         ))
     }
 
