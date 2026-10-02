@@ -23,7 +23,10 @@ struct Coordinator {
 }
 
 impl Coordinator {
-    fn run(&mut self, terminal: &mut DefaultTerminal) -> std::io::Result<()> {
+    fn run(
+        &mut self,
+        terminal: &mut DefaultTerminal,
+    ) -> std::io::Result<(f64, &str, &str, &str, &str, &str)> {
         while !self.exit {
             if self.started && Instant::now() >= self.ends_at {
                 self.exit = true
@@ -33,7 +36,28 @@ impl Coordinator {
             self.handle_events()?;
         }
 
-        Ok(())
+        let source_iter = self.source.split(" ");
+        let target_iter = self.target.split(" ");
+
+        let correct_words = source_iter
+            .zip(target_iter)
+            .fold(0, |acc: usize, (src, trg)| {
+                acc.add(if src == trg { 1 } else { 0 })
+            });
+
+        let typing_time = Instant::now()
+            .checked_duration_since(self.ends_at.sub(TYPING_TIME))
+            .unwrap_or(TYPING_TIME)
+            .as_micros();
+
+        Ok((
+            (correct_words * 60000000) as f64 / typing_time as f64,
+            "82",
+            "74",
+            "0",
+            "1",
+            "10",
+        ))
     }
 
     fn draw(&self, frame: &mut Frame) {
@@ -309,6 +333,14 @@ fn main() -> color_eyre::Result<()> {
     };
 
     color_eyre::install()?;
-    ratatui::run(|terminal| coordinator.run(terminal))?;
+    let (wpm, acc, cor, inc, ext, mis) = ratatui::run(|terminal| coordinator.run(terminal))?;
+
+    println!("WPM: {:.2}", wpm);
+    println!("Accuracy: {}%", acc);
+    println!(
+        "{} correct, {} incorrect, {} extra, {} missed",
+        cor, inc, ext, mis
+    );
+
     Ok(())
 }
