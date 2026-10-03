@@ -330,9 +330,9 @@ impl Coordinator {
 }
 
 fn main() -> color_eyre::Result<()> {
-    const WORDS: usize = 256;
+    const WORDS: usize = 64;
 
-    let file = fs::File::open("dictionaries/font_master.txt")?;
+    let file = fs::File::open("dictionaries/english_1k.txt")?;
     let reader = BufReader::new(file);
     let dictionary = reader.lines().collect::<Result<Vec<String>, _>>()?;
 
