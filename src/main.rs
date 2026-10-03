@@ -12,16 +12,23 @@ use std::time::{Duration, Instant};
 
 const PADDING: u16 = 1;
 /// The amount of seconds you get for typing
-const TYPING_TIME: Duration = Duration::from_secs(15);
+const TYPING_TIME: Duration = Duration::from_secs(999);
 const POLLING_TIME: Duration = Duration::from_millis(200);
+/// Amount of lines to render at a time
+/// TODO: Implement an actual limit
+const RENDER_LINES: usize = 3;
+const REQUEST_LINES_THRESHOLD: usize = RENDER_LINES + 1;
+const WORDS: usize = 64;
 
 #[derive(Debug)]
 struct Coordinator {
     source: String,
     target: String,
+    ends_at: Instant,
+
     exit: bool,
     started: bool,
-    ends_at: Instant,
+    need_more_lines: bool,
 }
 
 impl Coordinator {
@@ -31,7 +38,27 @@ impl Coordinator {
     ) -> std::io::Result<(f64, &str, usize, usize, usize, usize)> {
         while !self.exit {
             if self.started && Instant::now() >= self.ends_at {
-                self.exit = true
+                self.exit = true;
+                continue;
+            }
+
+            // TODO: This is bad, but works for now
+            if self.need_more_lines {
+                let file = fs::File::open("dictionaries/english_1k.txt")?;
+                let reader = BufReader::new(file);
+                let dictionary = reader.lines().collect::<Result<Vec<String>, _>>()?;
+
+                let additional_text = (0..WORDS)
+                    .map(|_| dictionary.iter().choose(&mut rand::rng()).unwrap())
+                    .collect::<Vec<&String>>()
+                    .into_iter()
+                    .map(|x| x.as_str())
+                    .collect::<Vec<&str>>()
+                    .join(" ");
+
+                self.target += &(" ".to_string() + &additional_text);
+
+                self.need_more_lines = false;
             }
 
             terminal.draw(|frame| self.draw(frame))?;
@@ -41,9 +68,9 @@ impl Coordinator {
         let source_iter = self.source.split(" ").filter(|&x| x != "");
         let target_iter = self.target.split(" ").filter(|&x| x != "");
 
-        let stats = source_iter
-            .zip(target_iter)
-            .fold((0, 0, 0, 0, 0), |acc, (src, trg)| {
+        let stats = source_iter.zip(target_iter).fold(
+            (0, 0, 0, 0, 0),
+            |acc: (usize, usize, usize, usize, usize), (src, trg)| {
                 (
                     acc.0.add(if src == trg { 1 } else { 0 }),
                     acc.1.add(
@@ -63,7 +90,8 @@ impl Coordinator {
                     acc.3.add(src.len().saturating_sub(trg.len())),
                     acc.4.add(trg.len().saturating_sub(src.len())),
                 )
-            });
+            },
+        );
 
         let typing_time = Instant::now()
             .checked_duration_since(self.ends_at.sub(TYPING_TIME))
@@ -80,7 +108,21 @@ impl Coordinator {
         ))
     }
 
-    fn draw(&self, frame: &mut Frame) {
+    /// Return the line the cursor is at given its index
+    /// in the target list of spans
+    fn cursor_line_number(
+        &self,
+        layout_width: u16,
+        spans: Vec<Span<'_>>,
+        cursor_at: usize,
+    ) -> usize {
+        let phantom_target = Line::from(&spans[..cursor_at + 1]);
+        let phantom_paragraph = Paragraph::new(phantom_target).wrap(Wrap { trim: true });
+
+        phantom_paragraph.line_count(layout_width - PADDING * 2)
+    }
+
+    fn draw(&mut self, frame: &mut Frame) {
         let block = Block::default()
             .borders(Borders::NONE)
             .padding(Padding::uniform(PADDING));
@@ -199,7 +241,6 @@ impl Coordinator {
         }
 
         let s3_clone = s3.clone();
-        let phantom_target = Line::from(&s3_clone.clone()[..cursor_at + 1]);
         let target = Line::from(s3);
 
         let layout = Layout::default()
@@ -216,24 +257,19 @@ impl Coordinator {
             ])
             .split(layout[0]);
 
-        let phantom_paragraph = Paragraph::new(phantom_target)
-            // .block(block.clone())
-            .wrap(Wrap { trim: true });
-
         let paragraph = Paragraph::new(target)
             .block(block.clone())
             .wrap(Wrap { trim: true });
 
-        let source_spaces_count = self.source.chars().filter(|&x| x == ' ').count();
-        let characters_up_to_cursor = (self
-            .target
-            .split(" ")
-            .take(source_spaces_count + 1)
-            .map(|x| x.len())
-            .reduce(|acc, v| acc + v)
-            .unwrap_or(0)
-            + source_spaces_count)
-            .max(self.source.len());
+        let cursor_line_number = self.cursor_line_number(layout[0].width, s3_clone, cursor_at);
+        let paragraph = paragraph.scroll((cursor_line_number.saturating_sub(2) as u16, 0));
+        let lines_left = paragraph
+            .line_count(layout[0].width)
+            .saturating_sub(cursor_line_number as usize);
+
+        if lines_left <= REQUEST_LINES_THRESHOLD {
+            self.need_more_lines = true;
+        }
 
         let debug = Paragraph::new(vec![
             source,
@@ -242,21 +278,14 @@ impl Coordinator {
                 paragraph.line_count(layout[0].width - PADDING * 2),
                 ((cursor_at / layout[0].width.saturating_sub(PADDING * 2) as usize) as u16),
                 layout[0].width - PADDING * 2,
-                phantom_paragraph.line_count(block.inner(layout[0]).width),
+                0, // phantom_paragraph.line_count(block.inner(layout[0]).width),
                 block.inner(layout[0]).width,
-                &s3_clone[..cursor_at + 1],
+                paragraph
+                    .line_count(layout[0].width)
+                    .saturating_sub(cursor_line_number as usize)
             )),
         ])
         .wrap(Wrap { trim: true });
-
-        let paragraph = paragraph.scroll((
-            phantom_paragraph
-                .line_count(layout[0].width - PADDING * 2)
-                .saturating_sub(2) as u16,
-            // ((cursor_at / layout[0].width.saturating_sub(PADDING * 2) as usize) as u16)
-            //     .saturating_sub(1),
-            0,
-        ));
 
         frame.render_widget(
             Paragraph::new(Line::from(format!(
@@ -330,8 +359,6 @@ impl Coordinator {
 }
 
 fn main() -> color_eyre::Result<()> {
-    const WORDS: usize = 64;
-
     let file = fs::File::open("dictionaries/english_1k.txt")?;
     let reader = BufReader::new(file);
     let dictionary = reader.lines().collect::<Result<Vec<String>, _>>()?;
@@ -347,9 +374,10 @@ fn main() -> color_eyre::Result<()> {
     let mut coordinator = Coordinator {
         source: String::with_capacity(target.capacity()),
         target: target,
+        ends_at: Instant::now(),
         exit: false,
         started: false,
-        ends_at: Instant::now(),
+        need_more_lines: false,
     };
 
     color_eyre::install()?;
