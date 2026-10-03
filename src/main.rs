@@ -5,6 +5,8 @@ use ratatui::style::{Color, Style};
 use ratatui::text::{Line, Span};
 use ratatui::widgets::{Block, Borders, Padding, Paragraph, Wrap};
 use ratatui::{DefaultTerminal, Frame};
+use std::fs;
+use std::io::{BufRead, BufReader};
 use std::ops::{Add, Sub};
 use std::time::{Duration, Instant};
 
@@ -330,15 +332,15 @@ impl Coordinator {
 fn main() -> color_eyre::Result<()> {
     const WORDS: usize = 256;
 
-    let dictionary = vec![
-        "the", "quick", "brown", "fox", "jumps", "over", "the", "lazy", "dog",
-    ];
+    let file = fs::File::open("dictionaries/font_master.txt")?;
+    let reader = BufReader::new(file);
+    let dictionary = reader.lines().collect::<Result<Vec<String>, _>>()?;
 
     let target = (0..WORDS)
         .map(|_| dictionary.iter().choose(&mut rand::rng()).unwrap())
-        .collect::<Vec<&&str>>()
+        .collect::<Vec<&String>>()
         .into_iter()
-        .map(|&x| x)
+        .map(|x| x.as_str())
         .collect::<Vec<&str>>()
         .join(" ");
 
