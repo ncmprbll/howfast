@@ -30,10 +30,86 @@ impl Dictionary {
 
     pub fn get_random_words(&self, how_many: usize) -> Vec<&str> {
         (0..how_many)
-            .map(|_| self.words.iter().choose(&mut rand::rng()).unwrap())
+            .filter_map(|_| self.words.iter().choose(&mut rand::rng()))
             .collect::<Vec<&String>>()
             .iter()
             .map(|&x| x.as_str())
             .collect::<Vec<&str>>()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::collections::HashSet;
+
+    #[test]
+    fn initialize_dictionary_from_str_array() {
+        let dictionary = Dictionary::from(["a", "bcd", "ef"]);
+        assert_eq!(dictionary.words, vec!["a", "bcd", "ef"])
+    }
+
+    #[test]
+    fn initialize_dictionary_from_string_vector() {
+        let dictionary = Dictionary::from(vec!["a", "bcd", "ef"]);
+        assert_eq!(dictionary.words, vec!["a", "bcd", "ef"])
+    }
+
+    #[test]
+    fn initialize_dictionary_from_empty_vector() {
+        let dictionary = Dictionary::from(Vec::<String>::new());
+        assert_eq!(dictionary.words, Vec::<String>::new())
+    }
+
+    #[test]
+    fn get_zero_words_from_good_dictionary() {
+        let dictionary = Dictionary::from(vec!["a", "bcd", "ef"]);
+        let words = dictionary.get_random_words(0);
+        assert_eq!(words, Vec::<&str>::new());
+    }
+
+    #[test]
+    fn get_zero_words_from_bad_dictionary() {
+        let dictionary = Dictionary::from(Vec::<String>::new());
+        let words = dictionary.get_random_words(0);
+        println!("{}", dictionary.words.len());
+        assert_eq!(words, Vec::<&str>::new());
+    }
+
+    #[test]
+    fn get_one_word_from_good_dictionary() {
+        let dictionary = Dictionary::from(vec!["a", "bcd", "ef"]);
+        let words = dictionary.get_random_words(1);
+
+        let dictionary_words: HashSet<String> = dictionary.words.clone().into_iter().collect();
+        let random_words: HashSet<String> = words.into_iter().map(|x| x.to_string()).collect();
+
+        assert!(random_words.is_subset(&dictionary_words));
+    }
+
+    #[test]
+    fn get_one_word_from_bad_dictionary() {
+        let dictionary = Dictionary::from(Vec::<String>::new());
+        let words = dictionary.get_random_words(1);
+
+        let dictionary_words: HashSet<String> = dictionary.words.clone().into_iter().collect();
+        let random_words: HashSet<String> = words.into_iter().map(|x| x.to_string()).collect();
+
+        assert!(random_words.is_subset(&dictionary_words));
+    }
+
+    #[test]
+    fn get_more_words_from_dictionary_than_it_has() {
+        const WORDS: usize = 5;
+
+        let dictionary = Dictionary::from(vec!["a", "bcd", "ef"]);
+        assert!(dictionary.words.len() < WORDS);
+        let words = dictionary.get_random_words(WORDS);
+        assert!(words.len() == WORDS);
+
+        let dictionary_words: HashSet<String> = dictionary.words.clone().into_iter().collect();
+        let random_words: HashSet<String> = words.into_iter().map(|x| x.to_string()).collect();
+
+        assert!(random_words.is_subset(&dictionary_words));
     }
 }
