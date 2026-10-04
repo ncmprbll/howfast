@@ -1,5 +1,5 @@
 use crossterm::event::{self, Event, KeyCode, KeyEvent, KeyEventKind, KeyModifiers};
-use ratatui::layout::{Constraint, Direction, Layout};
+use ratatui::layout::{Constraint, Direction, Layout, Rect};
 use ratatui::style::{Color, Style};
 use ratatui::text::{Line, Span};
 use ratatui::widgets::{Block, Borders, Padding, Paragraph, Wrap};
@@ -16,8 +16,6 @@ const TYPING_TIME: Duration = Duration::from_secs(999);
 const POLLING_TIME: Duration = Duration::from_millis(200);
 /// Amount of lines to render at a time
 /// TODO: Implement an actual limit
-const RENDER_LINES: usize = 3;
-const REQUEST_LINES_THRESHOLD: usize = RENDER_LINES + 1;
 const TARGET_TEXT_SIZE_LIMIT: usize = 1 << 20;
 
 #[derive(Debug)]
@@ -37,6 +35,11 @@ impl Coordinator {
     /// How many words to request on initial creation
     /// and future expansions
     const REQUEST_WORDS: usize = 64;
+    /// Amount of lines to render at a time
+    const RENDER_LINES: usize = 3;
+    /// Request new lines once we reach this render
+    /// threshold
+    const RENDER_LINES_THRESHOLD: usize = Self::RENDER_LINES + 1;
 
     fn new(dictionary: Dictionary) -> Self {
         let target = dictionary.get_random_words(Self::REQUEST_WORDS).join(" ");
@@ -116,7 +119,7 @@ impl Coordinator {
             .as_micros();
 
         Ok((
-            (stats.0 * 60000000) as f64 / typing_time as f64,
+            (stats.0.saturating_mul(60000000)) as f64 / typing_time as f64,
             "82",
             stats.1,
             stats.2,
@@ -262,7 +265,7 @@ impl Coordinator {
 
         let layout = Layout::default()
             .direction(Direction::Horizontal)
-            .constraints(vec![Constraint::Percentage(50), Constraint::Percentage(50)])
+            .constraints(vec![Constraint::Percentage(50), Constraint::Fill(1)])
             .split(frame.area());
 
         let vertical_layout = Layout::default()
@@ -272,11 +275,9 @@ impl Coordinator {
                 Constraint::Length(1),
                 Constraint::Fill(1),
             ])
-            .split(layout[0]);
+            .split(block.inner(layout[0]));
 
-        let paragraph = Paragraph::new(target)
-            .block(block.clone())
-            .wrap(Wrap { trim: true });
+        let paragraph = Paragraph::new(target).wrap(Wrap { trim: true });
 
         let cursor_line_number = self.cursor_line_number(layout[0].width, s3_clone, cursor_at);
         let paragraph = paragraph.scroll((cursor_line_number.saturating_sub(2) as u16, 0));
@@ -284,19 +285,18 @@ impl Coordinator {
             .line_count(layout[0].width)
             .saturating_sub(cursor_line_number as usize);
 
-        if lines_left <= REQUEST_LINES_THRESHOLD {
+        if lines_left <= Self::RENDER_LINES_THRESHOLD {
             self.need_more_lines = true;
         }
 
         let debug = Paragraph::new(vec![
             source,
             Line::from(format!(
-                "{} {} {} {} {} {:?}",
-                paragraph.line_count(layout[0].width - PADDING * 2),
-                ((cursor_at / layout[0].width.saturating_sub(PADDING * 2) as usize) as u16),
+                "{} {} {} {} {:?}",
+                vertical_layout[2].x,
+                vertical_layout[2].y,
                 layout[0].width - PADDING * 2,
-                0, // phantom_paragraph.line_count(block.inner(layout[0]).width),
-                block.inner(layout[0]).width,
+                0,
                 paragraph
                     .line_count(layout[0].width)
                     .saturating_sub(cursor_line_number as usize)
@@ -306,7 +306,7 @@ impl Coordinator {
 
         frame.render_widget(
             Paragraph::new(Line::from(format!(
-                " howfast | {}s",
+                "howfast | {}s",
                 if !self.started {
                     TYPING_TIME
                 } else {
@@ -314,9 +314,17 @@ impl Coordinator {
                 }
                 .as_secs()
             ))),
-            vertical_layout[1],
+            vertical_layout[0],
         );
-        frame.render_widget(paragraph, vertical_layout[2]);
+
+        let limited_area = Rect::new(
+            vertical_layout[2].x,
+            vertical_layout[2].y,
+            vertical_layout[2].width,
+            Self::RENDER_LINES as u16,
+        );
+
+        frame.render_widget(paragraph, limited_area);
         frame.render_widget(debug, layout[1]);
     }
 
