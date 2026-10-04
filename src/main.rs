@@ -1,14 +1,14 @@
 use crossterm::event::{self, Event, KeyCode, KeyEvent, KeyEventKind, KeyModifiers};
-use rand::seq::IteratorRandom;
 use ratatui::layout::{Constraint, Direction, Layout};
 use ratatui::style::{Color, Style};
 use ratatui::text::{Line, Span};
 use ratatui::widgets::{Block, Borders, Padding, Paragraph, Wrap};
 use ratatui::{DefaultTerminal, Frame};
-use std::fs;
-use std::io::{BufRead, BufReader};
 use std::ops::{Add, Sub};
 use std::time::{Duration, Instant};
+
+mod dictionary;
+use dictionary::Dictionary;
 
 const PADDING: u16 = 1;
 /// The amount of seconds you get for typing
@@ -19,10 +19,12 @@ const POLLING_TIME: Duration = Duration::from_millis(200);
 const RENDER_LINES: usize = 3;
 const REQUEST_LINES_THRESHOLD: usize = RENDER_LINES + 1;
 const WORDS: usize = 64;
-const TARGET_TEXT_SIZE_LIMIT: usize = 1 << 14;
+const TARGET_TEXT_SIZE_LIMIT: usize = 1 << 20;
 
 #[derive(Debug)]
 struct Coordinator {
+    dictionary: Dictionary,
+
     source: String,
     target: String,
     ends_at: Instant,
@@ -43,22 +45,9 @@ impl Coordinator {
                 continue;
             }
 
-            // TODO: This is bad, but works for now
             if self.need_more_lines {
-                let file = fs::File::open("dictionaries/english_1k.txt")?;
-                let reader = BufReader::new(file);
-                let dictionary = reader.lines().collect::<Result<Vec<String>, _>>()?;
-
-                let additional_text = (0..WORDS)
-                    .map(|_| dictionary.iter().choose(&mut rand::rng()).unwrap())
-                    .collect::<Vec<&String>>()
-                    .into_iter()
-                    .map(|x| x.as_str())
-                    .collect::<Vec<&str>>()
-                    .join(" ");
-
+                let additional_text = self.dictionary.get_random_words(WORDS).join(" ");
                 self.target += &(" ".to_string() + &additional_text);
-
                 self.need_more_lines = false;
 
                 // This might be getting out of hand - stop the
@@ -367,21 +356,13 @@ impl Coordinator {
 }
 
 fn main() -> color_eyre::Result<()> {
-    let file = fs::File::open("dictionaries/english_1k.txt")?;
-    let reader = BufReader::new(file);
-    let dictionary = reader.lines().collect::<Result<Vec<String>, _>>()?;
-
-    let target = (0..WORDS)
-        .map(|_| dictionary.iter().choose(&mut rand::rng()).unwrap())
-        .collect::<Vec<&String>>()
-        .into_iter()
-        .map(|x| x.as_str())
-        .collect::<Vec<&str>>()
-        .join(" ");
+    let dictionary = Dictionary::from_file("dictionaries/english_1k.txt")?;
+    let target = dictionary.get_random_words(WORDS).join(" ");
 
     let mut coordinator = Coordinator {
+        dictionary,
         source: String::with_capacity(target.capacity()),
-        target: target,
+        target,
         ends_at: Instant::now(),
         exit: false,
         started: false,
