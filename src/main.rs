@@ -18,7 +18,6 @@ const POLLING_TIME: Duration = Duration::from_millis(200);
 /// TODO: Implement an actual limit
 const RENDER_LINES: usize = 3;
 const REQUEST_LINES_THRESHOLD: usize = RENDER_LINES + 1;
-const WORDS: usize = 64;
 const TARGET_TEXT_SIZE_LIMIT: usize = 1 << 20;
 
 #[derive(Debug)]
@@ -35,6 +34,24 @@ struct Coordinator {
 }
 
 impl Coordinator {
+    /// How many words to request on initial creation
+    /// and future expansions
+    const REQUEST_WORDS: usize = 64;
+
+    fn new(dictionary: Dictionary) -> Self {
+        let target = dictionary.get_random_words(Self::REQUEST_WORDS).join(" ");
+
+        Self {
+            dictionary,
+            source: String::with_capacity(target.len()),
+            target,
+            ends_at: Instant::now(),
+            exit: false,
+            started: false,
+            need_more_lines: false,
+        }
+    }
+
     fn run(
         &mut self,
         terminal: &mut DefaultTerminal,
@@ -46,7 +63,10 @@ impl Coordinator {
             }
 
             if self.need_more_lines {
-                let additional_text = self.dictionary.get_random_words(WORDS).join(" ");
+                let additional_text = self
+                    .dictionary
+                    .get_random_words(Self::REQUEST_WORDS)
+                    .join(" ");
                 self.target += &(" ".to_string() + &additional_text);
                 self.need_more_lines = false;
 
@@ -357,17 +377,7 @@ impl Coordinator {
 
 fn main() -> color_eyre::Result<()> {
     let dictionary = Dictionary::from_file("dictionaries/english_1k.txt")?;
-    let target = dictionary.get_random_words(WORDS).join(" ");
-
-    let mut coordinator = Coordinator {
-        dictionary,
-        source: String::with_capacity(target.capacity()),
-        target,
-        ends_at: Instant::now(),
-        exit: false,
-        started: false,
-        need_more_lines: false,
-    };
+    let mut coordinator = Coordinator::new(dictionary);
 
     color_eyre::install()?;
     let (wpm, acc, cor, inc, ext, mis) = ratatui::run(|terminal| coordinator.run(terminal))?;

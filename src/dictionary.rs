@@ -15,7 +15,7 @@ impl Dictionary {
         T: IntoIterator<Item = K>,
         K: Into<String>,
     {
-        Dictionary {
+        Self {
             words: iter.into_iter().map(Into::into).collect(),
         }
     }
