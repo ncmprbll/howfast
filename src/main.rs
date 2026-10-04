@@ -19,6 +19,7 @@ const POLLING_TIME: Duration = Duration::from_millis(200);
 const RENDER_LINES: usize = 3;
 const REQUEST_LINES_THRESHOLD: usize = RENDER_LINES + 1;
 const WORDS: usize = 64;
+const TARGET_TEXT_SIZE_LIMIT: usize = 1 << 14;
 
 #[derive(Debug)]
 struct Coordinator {
@@ -59,6 +60,13 @@ impl Coordinator {
                 self.target += &(" ".to_string() + &additional_text);
 
                 self.need_more_lines = false;
+
+                // This might be getting out of hand - stop the
+                // unbounded growth!
+                if self.target.len() >= TARGET_TEXT_SIZE_LIMIT {
+                    self.exit = true;
+                    continue;
+                }
             }
 
             terminal.draw(|frame| self.draw(frame))?;
