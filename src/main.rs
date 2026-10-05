@@ -10,14 +10,6 @@ use std::time::{Duration, Instant};
 mod dictionary;
 use dictionary::Dictionary;
 
-const PADDING: u16 = 1;
-/// The amount of seconds you get for typing
-const TYPING_TIME: Duration = Duration::from_secs(999);
-const POLLING_TIME: Duration = Duration::from_millis(200);
-/// Amount of lines to render at a time
-/// TODO: Implement an actual limit
-const TARGET_TEXT_SIZE_LIMIT: usize = 1 << 20;
-
 #[derive(Debug)]
 struct Coordinator {
     dictionary: Dictionary,
@@ -34,12 +26,19 @@ struct Coordinator {
 impl Coordinator {
     /// How many words to request on initial creation
     /// and future expansions
-    const REQUEST_WORDS: usize = 64;
+    const REQUEST_WORDS: usize = 128;
     /// Amount of lines to render at a time
     const RENDER_LINES: usize = 3;
-    /// Request new lines once we reach this render
-    /// threshold
+    /// Request new lines once we reach this render threshold
     const RENDER_LINES_THRESHOLD: usize = Self::RENDER_LINES + 1;
+    /// If the text grows above this threshold, we
+    /// should halt the program
+    const TARGET_TEXT_SIZE_LIMIT: usize = 1 << 20;
+    /// Padding?..
+    const PADDING: u16 = 1;
+    /// The amount of seconds you get for typing
+    const TYPING_TIME: Duration = Duration::from_secs(999);
+    const POLLING_TIME: Duration = Duration::from_millis(200);
 
     fn new(dictionary: Dictionary) -> Self {
         let target = dictionary.get_random_words(Self::REQUEST_WORDS).join(" ");
@@ -75,7 +74,7 @@ impl Coordinator {
 
                 // This might be getting out of hand - stop the
                 // unbounded growth!
-                if self.target.len() >= TARGET_TEXT_SIZE_LIMIT {
+                if self.target.len() >= Self::TARGET_TEXT_SIZE_LIMIT {
                     self.exit = true;
                     continue;
                 }
@@ -114,8 +113,8 @@ impl Coordinator {
         );
 
         let typing_time = Instant::now()
-            .checked_duration_since(self.ends_at.sub(TYPING_TIME))
-            .unwrap_or(TYPING_TIME)
+            .checked_duration_since(self.ends_at.sub(Self::TYPING_TIME))
+            .unwrap_or(Self::TYPING_TIME)
             .as_micros();
 
         Ok((
@@ -139,13 +138,13 @@ impl Coordinator {
         let phantom_target = Line::from(&spans[..cursor_at + 1]);
         let phantom_paragraph = Paragraph::new(phantom_target).wrap(Wrap { trim: true });
 
-        phantom_paragraph.line_count(layout_width - PADDING * 2)
+        phantom_paragraph.line_count(layout_width - Self::PADDING * 2)
     }
 
     fn draw(&mut self, frame: &mut Frame) {
         let block = Block::default()
             .borders(Borders::NONE)
-            .padding(Padding::uniform(PADDING));
+            .padding(Padding::uniform(Self::PADDING));
 
         let source = Line::from(Span::styled(
             self.source.as_str(),
@@ -295,7 +294,7 @@ impl Coordinator {
                 "{} {} {} {} {:?}",
                 vertical_layout[2].x,
                 vertical_layout[2].y,
-                layout[0].width - PADDING * 2,
+                layout[0].width - Self::PADDING * 2,
                 0,
                 paragraph
                     .line_count(layout[0].width)
@@ -308,7 +307,7 @@ impl Coordinator {
             Paragraph::new(Line::from(format!(
                 "howfast | {}s",
                 if !self.started {
-                    TYPING_TIME
+                    Self::TYPING_TIME
                 } else {
                     self.ends_at.sub(Instant::now())
                 }
@@ -329,7 +328,7 @@ impl Coordinator {
     }
 
     fn handle_events(&mut self) -> std::io::Result<()> {
-        if !event::poll(POLLING_TIME)? {
+        if !event::poll(Self::POLLING_TIME)? {
             return Ok(());
         }
 
@@ -371,7 +370,7 @@ impl Coordinator {
             KeyCode::Char(c) => {
                 if !self.started {
                     self.started = true;
-                    self.ends_at = Instant::now().add(TYPING_TIME)
+                    self.ends_at = Instant::now().add(Self::TYPING_TIME)
                 }
                 self.source.push(c);
             }
