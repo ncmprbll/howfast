@@ -14,11 +14,11 @@ pub struct DebugFlags(pub u8);
 
 impl DebugFlags {
     /// Nothing
-    pub const None: u8 = 0b00;
+    pub const NONE: u8 = 0b00;
     /// Render source text with some additional data
-    pub const SourceText: u8 = 0b01;
+    pub const SOURCE_TEXT: u8 = 0b01;
     /// Render text overflow to track text generation
-    pub const TextOverflow: u8 = 0b10;
+    pub const TEXT_OVERFLOW: u8 = 0b10;
 }
 
 #[derive(Debug)]
@@ -64,7 +64,7 @@ impl Coordinator {
             exit: false,
             started: false,
             need_more_lines: false,
-            debug_flags: DebugFlags(DebugFlags::None),
+            debug_flags: DebugFlags(DebugFlags::NONE),
         }
     }
 
@@ -302,21 +302,6 @@ impl Coordinator {
             self.need_more_lines = true;
         }
 
-        let debug = Paragraph::new(vec![
-            source,
-            Line::from(format!(
-                "{} {} {} {} {:?}",
-                vertical_layout[2].x,
-                vertical_layout[2].y,
-                layout[0].width - Self::PADDING * 2,
-                0,
-                paragraph
-                    .line_count(layout[0].width)
-                    .saturating_sub(cursor_line_number as usize)
-            )),
-        ])
-        .wrap(Wrap { trim: true });
-
         frame.render_widget(
             Paragraph::new(Line::from(format!(
                 "howfast | {}s",
@@ -334,11 +319,30 @@ impl Coordinator {
             vertical_layout[2].x,
             vertical_layout[2].y,
             vertical_layout[2].width,
-            Self::RENDER_LINES as u16,
+            if self.has_all_flags(DebugFlags::TEXT_OVERFLOW) {
+                vertical_layout[2].height
+            } else {
+                Self::RENDER_LINES as u16
+            },
         );
 
         frame.render_widget(paragraph, limited_area);
-        frame.render_widget(debug, layout[1]);
+
+        if self.has_all_flags(DebugFlags::SOURCE_TEXT) {
+            let debug = Paragraph::new(vec![
+                source,
+                Line::from(format!(
+                    "{} {} {} {}",
+                    vertical_layout[2].x,
+                    vertical_layout[2].y,
+                    layout[0].width - Self::PADDING * 2,
+                    0,
+                )),
+            ])
+            .wrap(Wrap { trim: true });
+
+            frame.render_widget(debug, layout[1]);
+        }
     }
 
     fn handle_events(&mut self) -> std::io::Result<()> {
@@ -393,5 +397,11 @@ impl Coordinator {
             }
             _ => {}
         }
+    }
+
+    /// Returns true if the coordinator has all of
+    /// the specified flags
+    fn has_all_flags(&self, flags: u8) -> bool {
+        return self.debug_flags.0 & flags == flags;
     }
 }

@@ -11,7 +11,7 @@ fn main() -> color_eyre::Result<()> {
 
     let dictionary = Dictionary::from_file("dictionaries/english_1k.txt")?;
     let mut coordinator = Coordinator::new(dictionary);
-    coordinator.debug_flags = DebugFlags(DebugFlags::SourceText | DebugFlags::TextOverflow);
+    coordinator.debug_flags = DebugFlags(DebugFlags::SOURCE_TEXT);
 
     let (wpm, acc, cor, inc, ext, mis) = ratatui::run(|terminal| coordinator.run(terminal))?;
 
