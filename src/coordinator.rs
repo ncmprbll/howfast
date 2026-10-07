@@ -10,16 +10,30 @@ use std::time::{Duration, Instant};
 use crate::Dictionary;
 
 #[derive(Debug)]
+pub struct DebugFlags(pub u8);
+
+impl DebugFlags {
+    /// Nothing
+    pub const None: u8 = 0b00;
+    /// Render source text with some additional data
+    pub const SourceText: u8 = 0b01;
+    /// Render text overflow to track text generation
+    pub const TextOverflow: u8 = 0b10;
+}
+
+#[derive(Debug)]
 pub struct Coordinator {
     dictionary: Dictionary,
 
     source: String,
     target: String,
+
     ends_at: Instant,
 
     exit: bool,
     started: bool,
     need_more_lines: bool,
+    pub debug_flags: DebugFlags,
 }
 
 impl Coordinator {
@@ -50,6 +64,7 @@ impl Coordinator {
             exit: false,
             started: false,
             need_more_lines: false,
+            debug_flags: DebugFlags(DebugFlags::None),
         }
     }
 
