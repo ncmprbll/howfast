@@ -13,6 +13,10 @@ struct Args {
     #[arg(short = 'f', long, default_value = "dictionaries/english_1k.txt")]
     dictionary_path: String,
 
+    /// The amount of seconds you get for typing
+    #[arg(short = 't', long, default_value = "30")]
+    typing_time: u64,
+
     /// Enable debugging options with comma separated
     /// values - source_text and text_oveflow are available
     #[arg(short = 'd', long = "debug", verbatim_doc_comment)]
@@ -35,8 +39,7 @@ fn main() -> color_eyre::Result<()> {
     }
 
     let dictionary = Dictionary::from_file(&args.dictionary_path)?;
-    let mut coordinator = Coordinator::new(dictionary);
-    coordinator.debug_flags = DebugFlags(debug_flags);
+    let mut coordinator = Coordinator::new(dictionary, args.typing_time, debug_flags);
 
     let (wpm, acc, cor, inc, ext, mis) = ratatui::run(|terminal| coordinator.run(terminal))?;
 

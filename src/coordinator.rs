@@ -21,6 +21,12 @@ impl DebugFlags {
     pub const TEXT_OVERFLOW: u8 = 0b10;
 }
 
+impl From<u8> for DebugFlags {
+    fn from(value: u8) -> Self {
+        DebugFlags(value)
+    }
+}
+
 #[derive(Debug)]
 pub struct Coordinator {
     dictionary: Dictionary,
@@ -28,6 +34,7 @@ pub struct Coordinator {
     source: String,
     target: String,
 
+    typing_time: Duration,
     ends_at: Instant,
 
     exit: bool,
@@ -49,22 +56,25 @@ impl Coordinator {
     const TARGET_TEXT_SIZE_LIMIT: usize = 1 << 20;
     /// Padding?..
     const PADDING: u16 = 1;
-    /// The amount of seconds you get for typing
-    const TYPING_TIME: Duration = Duration::from_secs(999);
     const POLLING_TIME: Duration = Duration::from_millis(200);
 
-    pub fn new(dictionary: Dictionary) -> Self {
+    pub fn new(
+        dictionary: Dictionary,
+        typing_time_secs: u64,
+        debug_flags: impl Into<DebugFlags>,
+    ) -> Self {
         let target = dictionary.get_random_words(Self::REQUEST_WORDS).join(" ");
 
         Self {
             dictionary,
             source: String::with_capacity(target.len()),
             target,
+            typing_time: Duration::from_secs(typing_time_secs),
             ends_at: Instant::now(),
             exit: false,
             started: false,
             need_more_lines: false,
-            debug_flags: DebugFlags(DebugFlags::NONE),
+            debug_flags: debug_flags.into(),
         }
     }
 
@@ -127,8 +137,8 @@ impl Coordinator {
         );
 
         let typing_time = Instant::now()
-            .checked_duration_since(self.ends_at.sub(Self::TYPING_TIME))
-            .unwrap_or(Self::TYPING_TIME)
+            .checked_duration_since(self.ends_at.sub(self.typing_time))
+            .unwrap_or(self.typing_time)
             .as_micros();
 
         Ok((
@@ -306,7 +316,7 @@ impl Coordinator {
             Paragraph::new(Line::from(format!(
                 "howfast | {}s",
                 if !self.started {
-                    Self::TYPING_TIME
+                    self.typing_time
                 } else {
                     self.ends_at.sub(Instant::now())
                 }
@@ -388,7 +398,7 @@ impl Coordinator {
             KeyCode::Char(c) => {
                 if !self.started {
                     self.started = true;
-                    self.ends_at = Instant::now().add(Self::TYPING_TIME)
+                    self.ends_at = Instant::now().add(self.typing_time)
                 }
                 self.source.push(c);
             }
