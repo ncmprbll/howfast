@@ -43,6 +43,11 @@ fn main() -> color_eyre::Result<()> {
 
     let (wpm, acc, cor, inc, ext, mis) = ratatui::run(|terminal| coordinator.run(terminal))?;
 
+    if args.typing_time == 0 {
+        println!("Cool performance - one keystroke per nothing");
+        return Ok(());
+    }
+
     println!("WPM: {:.2}", wpm);
     println!("Accuracy: {}%", acc);
     println!(
