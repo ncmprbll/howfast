@@ -2,9 +2,7 @@ mod dictionary;
 use dictionary::Dictionary;
 
 mod coordinator;
-use coordinator::Coordinator;
-
-use crate::coordinator::DebugFlags;
+use coordinator::{Coordinator, DebugFlags};
 
 fn main() -> color_eyre::Result<()> {
     color_eyre::install()?;
