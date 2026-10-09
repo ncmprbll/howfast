@@ -1,15 +1,42 @@
+use clap::Parser;
+
 mod dictionary;
 use dictionary::Dictionary;
 
 mod coordinator;
 use coordinator::{Coordinator, DebugFlags};
 
+#[derive(Parser, Debug)]
+#[command(version, about, long_about =  None)]
+struct Args {
+    /// Path to the dictionary (see dictionaries for examples)
+    #[arg(short = 'f', long, default_value = "dictionaries/english_1k.txt")]
+    dictionary_path: String,
+
+    /// Enable debugging options with comma separated
+    /// values - source_text and text_oveflow are available
+    #[arg(short = 'd', long = "debug", verbatim_doc_comment)]
+    debug_flags: Option<String>,
+}
+
 fn main() -> color_eyre::Result<()> {
     color_eyre::install()?;
 
-    let dictionary = Dictionary::from_file("dictionaries/english_1k.txt")?;
+    let args = Args::parse();
+
+    let mut debug_flags = DebugFlags::NONE;
+
+    if let Some(flags) = args.debug_flags {
+        flags.split(",").for_each(|x| match x {
+            "source_text" => debug_flags |= DebugFlags::SOURCE_TEXT,
+            "text_overflow" => debug_flags |= DebugFlags::TEXT_OVERFLOW,
+            _ => (),
+        });
+    }
+
+    let dictionary = Dictionary::from_file(&args.dictionary_path)?;
     let mut coordinator = Coordinator::new(dictionary);
-    coordinator.debug_flags = DebugFlags(DebugFlags::SOURCE_TEXT);
+    coordinator.debug_flags = DebugFlags(debug_flags);
 
     let (wpm, acc, cor, inc, ext, mis) = ratatui::run(|terminal| coordinator.run(terminal))?;
 
