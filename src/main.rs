@@ -1,3 +1,5 @@
+use std::num::ParseIntError;
+
 use clap::Parser;
 
 mod dictionary;
@@ -16,6 +18,10 @@ struct Args {
     /// The amount of seconds you get for typing
     #[arg(short = 't', long, default_value = "30")]
     typing_time: u64,
+
+    /// Amount of lines to render at a time
+    #[arg(short = 'l', long, default_value = "3", value_parser = |x: &str| Ok::<usize, ParseIntError>(x.parse::<usize>()?.max(1)))]
+    render_lines: usize,
 
     /// Enable debugging options with comma separated
     /// values - source_text and text_oveflow are available
@@ -39,7 +45,8 @@ fn main() -> color_eyre::Result<()> {
     }
 
     let dictionary = Dictionary::from_file(&args.dictionary_path)?;
-    let mut coordinator = Coordinator::new(dictionary, args.typing_time, debug_flags);
+    let mut coordinator =
+        Coordinator::new(dictionary, args.typing_time, args.render_lines, debug_flags);
 
     let (wpm, acc, cor, inc, ext, mis) = ratatui::run(|terminal| coordinator.run(terminal))?;
 

@@ -35,6 +35,9 @@ pub struct Coordinator {
     target: String,
 
     typing_time: Duration,
+    render_lines: usize,
+    /// Request new lines once we reach this render threshold
+    render_lines_threshold: usize,
     ends_at: Instant,
 
     exit: bool,
@@ -47,10 +50,6 @@ impl Coordinator {
     /// How many words to request on initial creation
     /// and future expansions
     const REQUEST_WORDS: usize = 128;
-    /// Amount of lines to render at a time
-    const RENDER_LINES: usize = 3;
-    /// Request new lines once we reach this render threshold
-    const RENDER_LINES_THRESHOLD: usize = Self::RENDER_LINES + 1;
     /// If the text grows above this threshold, we
     /// should halt the program
     const TARGET_TEXT_SIZE_LIMIT: usize = 1 << 20;
@@ -61,6 +60,7 @@ impl Coordinator {
     pub fn new(
         dictionary: Dictionary,
         typing_time_secs: u64,
+        render_lines: usize,
         debug_flags: impl Into<DebugFlags>,
     ) -> Self {
         let target = dictionary.get_random_words(Self::REQUEST_WORDS).join(" ");
@@ -70,6 +70,8 @@ impl Coordinator {
             source: String::with_capacity(target.len()),
             target,
             typing_time: Duration::from_secs(typing_time_secs),
+            render_lines,
+            render_lines_threshold: render_lines + 1,
             ends_at: Instant::now(),
             exit: false,
             started: false,
@@ -308,7 +310,7 @@ impl Coordinator {
             .line_count(layout[0].width)
             .saturating_sub(cursor_line_number as usize);
 
-        if lines_left <= Self::RENDER_LINES_THRESHOLD {
+        if lines_left <= self.render_lines_threshold {
             self.need_more_lines = true;
         }
 
@@ -332,7 +334,7 @@ impl Coordinator {
             if self.has_all_flags(DebugFlags::TEXT_OVERFLOW) {
                 vertical_layout[2].height
             } else {
-                Self::RENDER_LINES as u16
+                self.render_lines as u16
             },
         );
 
