@@ -23,6 +23,14 @@ struct Args {
     #[arg(short = 'l', long, default_value = "3", value_parser = |x: &str| Ok::<usize, ParseIntError>(x.parse::<usize>()?.max(1)))]
     render_lines: usize,
 
+    /// Universal padding from all sides
+    #[arg(short = 'p', long, default_value = "1")]
+    padding: u16,
+
+    /// How wide should the typing area be in percent (1 to 100)
+    #[arg(short = 'w', long, default_value = "50", value_parser = |x: &str| Ok::<u8, ParseIntError>(x.parse::<u8>()?.min(100).max(1)))]
+    width_percent: u8,
+
     /// Enable debugging options with comma separated
     /// values - source_text and text_oveflow are available
     #[arg(short = 'd', long = "debug", verbatim_doc_comment)]
@@ -45,8 +53,14 @@ fn main() -> color_eyre::Result<()> {
     }
 
     let dictionary = Dictionary::from_file(&args.dictionary_path)?;
-    let mut coordinator =
-        Coordinator::new(dictionary, args.typing_time, args.render_lines, debug_flags);
+    let mut coordinator = Coordinator::new(
+        dictionary,
+        args.typing_time,
+        args.render_lines,
+        args.padding,
+        args.width_percent,
+        debug_flags,
+    );
 
     let (wpm, acc, cor, inc, ext, mis) = ratatui::run(|terminal| coordinator.run(terminal))?;
 

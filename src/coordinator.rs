@@ -38,6 +38,8 @@ pub struct Coordinator {
     render_lines: usize,
     /// Request new lines once we reach this render threshold
     render_lines_threshold: usize,
+    padding: u16,
+    width_percent: u8,
     ends_at: Instant,
 
     exit: bool,
@@ -49,18 +51,18 @@ pub struct Coordinator {
 impl Coordinator {
     /// How many words to request on initial creation
     /// and future expansions
-    const REQUEST_WORDS: usize = 128;
+    const REQUEST_WORDS: usize = 1 << 7;
     /// If the text grows above this threshold, we
     /// should halt the program
     const TARGET_TEXT_SIZE_LIMIT: usize = 1 << 20;
-    /// Padding?..
-    const PADDING: u16 = 1;
     const POLLING_TIME: Duration = Duration::from_millis(200);
 
     pub fn new(
         dictionary: Dictionary,
         typing_time_secs: u64,
         render_lines: usize,
+        padding: u16,
+        width_percent: u8,
         debug_flags: impl Into<DebugFlags>,
     ) -> Self {
         let target = dictionary.get_random_words(Self::REQUEST_WORDS).join(" ");
@@ -72,6 +74,8 @@ impl Coordinator {
             typing_time: Duration::from_secs(typing_time_secs),
             render_lines,
             render_lines_threshold: render_lines + 1,
+            padding,
+            width_percent,
             ends_at: Instant::now(),
             exit: false,
             started: false,
@@ -164,13 +168,13 @@ impl Coordinator {
         let phantom_target = Line::from(&spans[..cursor_at + 1]);
         let phantom_paragraph = Paragraph::new(phantom_target).wrap(Wrap { trim: true });
 
-        phantom_paragraph.line_count(layout_width - Self::PADDING * 2)
+        phantom_paragraph.line_count(layout_width.saturating_sub(self.padding * 2))
     }
 
     fn draw(&mut self, frame: &mut Frame) {
         let block = Block::default()
             .borders(Borders::NONE)
-            .padding(Padding::uniform(Self::PADDING));
+            .padding(Padding::uniform(self.padding));
 
         let source = Line::from(Span::styled(
             self.source.as_str(),
@@ -290,7 +294,10 @@ impl Coordinator {
 
         let layout = Layout::default()
             .direction(Direction::Horizontal)
-            .constraints(vec![Constraint::Percentage(50), Constraint::Fill(1)])
+            .constraints(vec![
+                Constraint::Percentage(self.width_percent as u16),
+                Constraint::Fill(1),
+            ])
             .split(frame.area());
 
         let vertical_layout = Layout::default()
@@ -347,7 +354,7 @@ impl Coordinator {
                     "{} {} {} {}",
                     vertical_layout[2].x,
                     vertical_layout[2].y,
-                    layout[0].width - Self::PADDING * 2,
+                    layout[0].width.saturating_sub(self.padding * 2),
                     0,
                 )),
             ])
