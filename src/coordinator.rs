@@ -115,7 +115,7 @@ impl Coordinator {
     pub fn run(
         &mut self,
         terminal: &mut DefaultTerminal,
-    ) -> std::io::Result<(f64, &str, usize, usize, usize, usize)> {
+    ) -> std::io::Result<(f64, f64, usize, usize, usize, usize)> {
         while !self.exit {
             if self.started && Instant::now() >= self.ends_at {
                 self.exit = true;
@@ -176,8 +176,9 @@ impl Coordinator {
             .as_micros();
 
         Ok((
-            (stats.0.saturating_mul(60000000)) as f64 / typing_time as f64,
-            "82",
+            stats.0.saturating_mul(60000000) as f64 / typing_time as f64,
+            self.correct_keystrokes.saturating_mul(100) as f64
+                / (self.correct_keystrokes + self.incorrect_keystrokes) as f64,
             stats.1,
             stats.2,
             stats.3,
@@ -405,11 +406,12 @@ impl Coordinator {
             let debug = Paragraph::new(vec![
                 source,
                 Line::from(format!(
-                    "{} {} {} {}",
+                    "{} {} {} {} {}",
                     vertical_layout[2].x,
                     vertical_layout[2].y,
                     layout[0].width.saturating_sub(self.padding * 2),
-                    0,
+                    self.correct_keystrokes,
+                    self.incorrect_keystrokes
                 )),
             ])
             .wrap(Wrap { trim: true });
@@ -463,6 +465,14 @@ impl Coordinator {
                     self.started = true;
                     self.ends_at = Instant::now().add(self.typing_time)
                 }
+
+                match self.expected_correct_token() {
+                    Some(e) if c == e => {
+                        self.correct_keystrokes = self.correct_keystrokes.wrapping_add(1)
+                    }
+                    _ => self.incorrect_keystrokes = self.incorrect_keystrokes.wrapping_add(1),
+                }
+
                 self.source.push(c);
             }
             KeyCode::Backspace => {

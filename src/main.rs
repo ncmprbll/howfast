@@ -70,7 +70,7 @@ fn main() -> color_eyre::Result<()> {
     }
 
     println!("WPM: {:.2}", wpm);
-    println!("Accuracy: {}%", acc);
+    println!("Accuracy: {:.0}%", acc);
     println!(
         "{} correct, {} incorrect, {} extra, {} missed",
         cor, inc, ext, mis
