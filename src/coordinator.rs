@@ -9,7 +9,7 @@ use std::time::{Duration, Instant};
 
 use crate::Dictionary;
 
-#[derive(Debug)]
+#[derive(Debug, Default)]
 pub struct DebugFlags(pub u8);
 
 impl DebugFlags {
@@ -46,6 +46,32 @@ pub struct Coordinator {
     started: bool,
     need_more_lines: bool,
     pub debug_flags: DebugFlags,
+
+    // Stats
+    correct_keystrokes: usize,
+    incorrect_keystrokes: usize,
+}
+
+impl Default for Coordinator {
+    fn default() -> Self {
+        Self {
+            dictionary: Default::default(),
+            source: Default::default(),
+            target: Default::default(),
+            typing_time: Default::default(),
+            render_lines: Default::default(),
+            render_lines_threshold: Default::default(),
+            padding: Default::default(),
+            width_percent: Default::default(),
+            ends_at: Instant::now(),
+            exit: Default::default(),
+            started: Default::default(),
+            need_more_lines: Default::default(),
+            debug_flags: Default::default(),
+            correct_keystrokes: Default::default(),
+            incorrect_keystrokes: Default::default(),
+        }
+    }
 }
 
 impl Coordinator {
@@ -81,6 +107,8 @@ impl Coordinator {
             started: false,
             need_more_lines: false,
             debug_flags: debug_flags.into(),
+            correct_keystrokes: 0,
+            incorrect_keystrokes: 0,
         }
     }
 
@@ -157,7 +185,7 @@ impl Coordinator {
         ))
     }
 
-    /// Return the line the cursor is at given its index
+    /// Returns the line the cursor is at given its index
     /// in the target list of spans
     fn cursor_line_number(
         &self,
@@ -169,6 +197,32 @@ impl Coordinator {
         let phantom_paragraph = Paragraph::new(phantom_target).wrap(Wrap { trim: true });
 
         phantom_paragraph.line_count(layout_width.saturating_sub(self.padding * 2))
+    }
+
+    /// Returns the next expected correct token based on
+    /// the match against source text and target text
+    fn expected_correct_token(&self) -> Option<char> {
+        if self.target == "" {
+            return None;
+        }
+
+        let src: Vec<&str> = self.source.split(' ').collect();
+        let trg: Vec<&str> = self.target.split(' ').collect();
+
+        if src.len() > trg.len() {
+            return None;
+        }
+
+        let last_source_word = src[src.len().saturating_sub(1)];
+        let target_word = trg[src.len().saturating_sub(1)];
+
+        // If the source is equal or overflowing, then the
+        // next token should just be space
+        if last_source_word.len() >= target_word.len() {
+            return Some(' ');
+        }
+
+        target_word.chars().nth(last_source_word.len())
     }
 
     fn draw(&mut self, frame: &mut Frame) {
@@ -422,5 +476,90 @@ impl Coordinator {
     /// the specified flags
     fn has_all_flags(&self, flags: u8) -> bool {
         return self.debug_flags.0 & flags == flags;
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn expected_correct_token_empty_source_and_target() {
+        let mut coordinator = Coordinator::default();
+
+        coordinator.source = "".to_string();
+        coordinator.target = "".to_string();
+
+        assert_eq!(coordinator.expected_correct_token(), None);
+    }
+
+    #[test]
+    fn expected_correct_token_overflowing_source_and_empty_target() {
+        let mut coordinator = Coordinator::default();
+
+        coordinator.source = "Why am I overflowing?".to_string();
+        coordinator.target = "".to_string();
+
+        assert_eq!(coordinator.expected_correct_token(), None);
+    }
+
+    #[test]
+    fn expected_correct_token_text_mismatch() {
+        let mut coordinator = Coordinator::default();
+
+        coordinator.source = "Why am I overflowing?".to_string();
+        coordinator.target = "Because you were supposed to wait.".to_string();
+
+        assert_eq!(coordinator.expected_correct_token(), Some(' '));
+    }
+
+    #[test]
+    fn expected_correct_token_single_word_matching() {
+        let mut coordinator = Coordinator::default();
+
+        coordinator.source = "Why".to_string();
+        coordinator.target = "Why am I overflowing?".to_string();
+
+        assert_eq!(coordinator.expected_correct_token(), Some(' '));
+    }
+
+    #[test]
+    fn expected_correct_token_two_words_almost_matching() {
+        let mut coordinator = Coordinator::default();
+
+        coordinator.source = "Why a".to_string();
+        coordinator.target = "Why am I overflowing?".to_string();
+
+        assert_eq!(coordinator.expected_correct_token(), Some('m'));
+    }
+
+    #[test]
+    fn expected_correct_token_three_words_almost_matching() {
+        let mut coordinator = Coordinator::default();
+
+        coordinator.source = "Why am ".to_string();
+        coordinator.target = "Why am I overflowing?".to_string();
+
+        assert_eq!(coordinator.expected_correct_token(), Some('I'));
+    }
+
+    #[test]
+    fn expected_correct_token_bad_text_start() {
+        let mut coordinator = Coordinator::default();
+
+        coordinator.source = "Bad te x t".to_string();
+        coordinator.target = "Why am I overflowing?".to_string();
+
+        assert_eq!(coordinator.expected_correct_token(), Some('v'));
+    }
+
+    #[test]
+    fn expected_correct_token_bad_text_start_longer() {
+        let mut coordinator = Coordinator::default();
+
+        coordinator.source = "Bad te x tovbfl".to_string();
+        coordinator.target = "Why am I overflOwing?".to_string();
+
+        assert_eq!(coordinator.expected_correct_token(), Some('O'));
     }
 }

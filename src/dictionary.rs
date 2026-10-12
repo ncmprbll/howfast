@@ -4,7 +4,7 @@ use std::{
     io::{BufRead, BufReader, Error},
 };
 
-#[derive(Debug)]
+#[derive(Debug, Default)]
 pub struct Dictionary {
     words: Vec<String>,
 }
