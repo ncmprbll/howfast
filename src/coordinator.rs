@@ -226,16 +226,9 @@ impl Coordinator {
         target_word.chars().nth(last_source_word.len())
     }
 
-    fn draw(&mut self, frame: &mut Frame) {
-        let block = Block::default()
-            .borders(Borders::NONE)
-            .padding(Padding::uniform(self.padding));
-
-        let source = Line::from(Span::styled(
-            self.source.as_str(),
-            Style::default().fg(Color::White),
-        ));
-
+    /// Returns a vector of decorated spans based on
+    /// the match against source text and target text
+    fn decorated_target_text<'a, 'b>(&'a self) -> (Vec<Span<'b>>, usize) {
         let s1: Vec<&str> = self.source.split(' ').collect();
         let s2: Vec<&str> = self.target.split(' ').collect();
         let mut s3: Vec<Span> = Vec::new();
@@ -252,7 +245,10 @@ impl Coordinator {
                     Style::default().fg(Color::Black).bg(Color::White),
                 ));
                 for j in 1..s2.len() {
-                    s3.push(Span::styled(s2[j], Style::default().fg(Color::DarkGray)));
+                    s3.push(Span::styled(
+                        s2[j].to_string(),
+                        Style::default().fg(Color::DarkGray),
+                    ));
                 }
                 s3.push(Span::styled(" ".to_string(), Style::default()));
 
@@ -261,7 +257,10 @@ impl Coordinator {
 
                 continue;
             } else if i >= s1.len() {
-                s3.push(Span::styled(s2[i], Style::default().fg(Color::DarkGray)));
+                s3.push(Span::styled(
+                    s2[i].to_string(),
+                    Style::default().fg(Color::DarkGray),
+                ));
                 s3.push(Span::styled(" ".to_string(), Style::default()));
 
                 continue;
@@ -341,9 +340,14 @@ impl Coordinator {
                 cursor_at = s3.len() - 1;
             } else {
                 s3.push(Span::styled(" ".to_string(), Style::default()))
-            }
+            };
         }
 
+        (s3, cursor_at)
+    }
+
+    fn draw(&mut self, frame: &mut Frame) {
+        let (s3, cursor_at) = self.decorated_target_text();
         let s3_clone = s3.clone();
         let target = Line::from(s3);
 
@@ -362,7 +366,12 @@ impl Coordinator {
                 Constraint::Length(1),
                 Constraint::Fill(1),
             ])
-            .split(block.inner(layout[0]));
+            .split(
+                Block::default()
+                    .borders(Borders::NONE)
+                    .padding(Padding::uniform(self.padding))
+                    .inner(layout[0]),
+            );
 
         let paragraph = Paragraph::new(target).wrap(Wrap { trim: true });
 
@@ -404,7 +413,10 @@ impl Coordinator {
 
         if self.has_all_flags(DebugFlags::SOURCE_TEXT) {
             let debug = Paragraph::new(vec![
-                source,
+                Line::from(Span::styled(
+                    self.source.as_str(),
+                    Style::default().fg(Color::White),
+                )),
                 Line::from(format!(
                     "{} {} {} {} {}",
                     vertical_layout[2].x,
