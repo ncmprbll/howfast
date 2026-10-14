@@ -40,6 +40,7 @@ pub struct Coordinator {
     render_lines_threshold: usize,
     padding: u16,
     width_percent: u8,
+    cursor_scroll_line_offset: usize,
     ends_at: Instant,
 
     exit: bool,
@@ -63,6 +64,7 @@ impl Default for Coordinator {
             render_lines_threshold: Default::default(),
             padding: Default::default(),
             width_percent: Default::default(),
+            cursor_scroll_line_offset: Default::default(),
             ends_at: Instant::now(),
             exit: Default::default(),
             started: Default::default(),
@@ -102,6 +104,7 @@ impl Coordinator {
             render_lines_threshold: render_lines + 1,
             padding,
             width_percent,
+            cursor_scroll_line_offset: render_lines.min(2).saturating_sub(1),
             ends_at: Instant::now(),
             exit: false,
             started: false,
@@ -142,6 +145,7 @@ impl Coordinator {
             self.handle_events()?;
         }
 
+        // Endgame stats
         let source_iter = self.source.split(" ").filter(|&x| x != "");
         let target_iter = self.target.split(" ").filter(|&x| x != "");
 
@@ -188,16 +192,13 @@ impl Coordinator {
 
     /// Returns the line the cursor is at given its index
     /// in the target list of spans
-    fn cursor_line_number(
-        &self,
-        layout_width: u16,
-        spans: Vec<Span<'_>>,
-        cursor_at: usize,
-    ) -> usize {
-        let phantom_target = Line::from(&spans[..cursor_at + 1]);
-        let phantom_paragraph = Paragraph::new(phantom_target).wrap(Wrap { trim: true });
-
-        phantom_paragraph.line_count(layout_width.saturating_sub(self.padding * 2))
+    fn cursor_line_number(&self, layout_width: u16, spans: &[Span<'_>], cursor_at: usize) -> usize {
+        let phantom_decorated_text_line = Line::from(&spans[..cursor_at + 1]);
+        let phantom_paragraph =
+            Paragraph::new(phantom_decorated_text_line).wrap(Wrap { trim: true });
+        phantom_paragraph
+            .line_count(layout_width.saturating_sub(self.padding * 2))
+            .saturating_sub(1) // 0-based
     }
 
     /// Returns the next expected correct token based on
@@ -226,8 +227,9 @@ impl Coordinator {
         target_word.chars().nth(last_source_word.len())
     }
 
-    /// Returns a vector of decorated spans based on
-    /// the match against source text and target text
+    /// Returns a vector of decorated spans and the position of
+    /// the cursor based on the match against source text and
+    /// target text
     fn decorated_target_text<'a, 'b>(&'a self) -> (Vec<Span<'b>>, usize) {
         let s1: Vec<&str> = self.source.split(' ').collect();
         let s2: Vec<&str> = self.target.split(' ').collect();
@@ -347,11 +349,7 @@ impl Coordinator {
     }
 
     fn draw(&mut self, frame: &mut Frame) {
-        let (s3, cursor_at) = self.decorated_target_text();
-        let s3_clone = s3.clone();
-        let target = Line::from(s3);
-
-        let layout = Layout::default()
+        let horizontal_layout = Layout::default()
             .direction(Direction::Horizontal)
             .constraints(vec![
                 Constraint::Percentage(self.width_percent as u16),
@@ -370,15 +368,26 @@ impl Coordinator {
                 Block::default()
                     .borders(Borders::NONE)
                     .padding(Padding::uniform(self.padding))
-                    .inner(layout[0]),
+                    .inner(horizontal_layout[0]),
             );
 
-        let paragraph = Paragraph::new(target).wrap(Wrap { trim: true });
+        let (decorated_text, decorated_text_cursor_at) = self.decorated_target_text();
 
-        let cursor_line_number = self.cursor_line_number(layout[0].width, s3_clone, cursor_at);
-        let paragraph = paragraph.scroll((cursor_line_number.saturating_sub(2) as u16, 0));
+        let cursor_line_number = self.cursor_line_number(
+            horizontal_layout[0].width,
+            &decorated_text,
+            decorated_text_cursor_at,
+        );
+
+        let paragraph = Paragraph::new(Line::from(decorated_text))
+            .wrap(Wrap { trim: true })
+            .scroll((
+                cursor_line_number.saturating_sub(self.cursor_scroll_line_offset) as u16,
+                0,
+            ));
+
         let lines_left = paragraph
-            .line_count(layout[0].width)
+            .line_count(horizontal_layout[0].width)
             .saturating_sub(cursor_line_number as usize);
 
         if lines_left <= self.render_lines_threshold {
@@ -421,14 +430,14 @@ impl Coordinator {
                     "{} {} {} {} {}",
                     vertical_layout[2].x,
                     vertical_layout[2].y,
-                    layout[0].width.saturating_sub(self.padding * 2),
+                    horizontal_layout[0].width.saturating_sub(self.padding * 2),
                     self.correct_keystrokes,
                     self.incorrect_keystrokes
                 )),
             ])
             .wrap(Wrap { trim: true });
 
-            frame.render_widget(debug, layout[1]);
+            frame.render_widget(debug, horizontal_layout[1]);
         }
     }
 
