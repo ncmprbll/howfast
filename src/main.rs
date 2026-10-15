@@ -52,7 +52,20 @@ fn main() -> color_eyre::Result<()> {
         });
     }
 
-    let dictionary = Dictionary::from_file(&args.dictionary_path)?;
+    let dictionary = match Dictionary::from_file(&args.dictionary_path) {
+        Ok(dictionary) => dictionary,
+        Err(err) => {
+            eprintln!(
+                "Failed to initialize dictionary with path '{}': {}",
+                &args.dictionary_path, err
+            );
+            eprintln!("Falling back to being a font master...");
+            Dictionary::from([
+                "the", "quick", "brown", "fox", "jumps", "over", "the", "lazy", "dog",
+            ])
+        }
+    };
+
     let mut coordinator = Coordinator::new(
         dictionary,
         args.typing_time,

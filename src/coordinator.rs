@@ -182,7 +182,7 @@ impl Coordinator {
         Ok((
             stats.0.saturating_mul(60000000) as f64 / typing_time as f64,
             self.correct_keystrokes.saturating_mul(100) as f64
-                / (self.correct_keystrokes + self.incorrect_keystrokes) as f64,
+                / (self.correct_keystrokes + self.incorrect_keystrokes).max(1) as f64,
             stats.1,
             stats.2,
             stats.3,
