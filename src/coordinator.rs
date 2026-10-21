@@ -93,7 +93,9 @@ impl Coordinator {
         width_percent: u8,
         debug_flags: impl Into<DebugFlags>,
     ) -> Self {
-        let target = dictionary.get_random_words(Self::REQUEST_WORDS).join(" ");
+        let target = dictionary
+            .get_random_words_with_punctuation(Self::REQUEST_WORDS)
+            .join(" ");
 
         Self {
             dictionary,
@@ -128,7 +130,7 @@ impl Coordinator {
             if self.need_more_lines {
                 let additional_text = self
                     .dictionary
-                    .get_random_words(Self::REQUEST_WORDS)
+                    .get_random_words_with_punctuation(Self::REQUEST_WORDS)
                     .join(" ");
                 self.target += &(" ".to_string() + &additional_text);
                 self.need_more_lines = false;

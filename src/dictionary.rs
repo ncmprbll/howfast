@@ -10,6 +10,11 @@ pub struct Dictionary {
 }
 
 impl Dictionary {
+    // How many words must pass before a chance to spawn
+    // another punctuation character is rolled
+    const PUNCTUATION_WORD_DISTANCE: usize = 4;
+    const PUNCTUATION_CHARACTERS_APPENDED: &[char] = &['.', ',', ';'];
+
     pub fn from<T, K>(iter: T) -> Self
     where
         T: IntoIterator<Item = K>,
@@ -28,13 +33,49 @@ impl Dictionary {
         Ok(Self::from(words))
     }
 
-    pub fn get_random_words(&self, how_many: usize) -> Vec<&str> {
+    fn get_random_words_iter(&self, how_many: usize) -> impl Iterator<Item = &str> {
         (0..how_many)
             .filter_map(|_| self.words.iter().choose(&mut rand::rng()))
-            .collect::<Vec<&String>>()
-            .iter()
-            .map(|&x| x.as_str())
-            .collect::<Vec<&str>>()
+            .map(|x| x.as_str())
+    }
+
+    pub fn get_random_words(&self, how_many: usize) -> Vec<&str> {
+        self.get_random_words_iter(how_many).collect()
+    }
+
+    pub fn get_random_words_with_punctuation(&self, how_many: usize) -> Vec<String> {
+        let mut must_capitalize = false;
+        let mut words_accumulator = 0;
+        let mut result = Vec::with_capacity(how_many);
+
+        self.get_random_words_iter(how_many).for_each(|x| {
+            let random_appended = Self::PUNCTUATION_CHARACTERS_APPENDED
+                .iter()
+                .choose(&mut rand::rng());
+
+            if words_accumulator <= Self::PUNCTUATION_WORD_DISTANCE {
+                words_accumulator += 1;
+                result.push(x.to_string());
+                return;
+            }
+
+            if let Some(random_appended) = Self::PUNCTUATION_CHARACTERS_APPENDED
+                .iter()
+                .choose(&mut rand::rng())
+            {
+                let mut word = x.to_string();
+                word.push(*random_appended);
+                words_accumulator = 0;
+                result.push(word);
+                return;
+            }
+
+            words_accumulator += 1;
+            result.push(x.to_string());
+            return;
+        });
+
+        result
     }
 }
 
