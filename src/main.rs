@@ -31,6 +31,10 @@ struct Args {
     #[arg(short = 'w', long, default_value = "50", value_parser = |x: &str| Ok::<u8, ParseIntError>(x.parse::<u8>()?.min(100).max(1)))]
     width_percent: u8,
 
+    /// Enable punctuation
+    #[arg(short = 'g', long, default_value = "false")]
+    with_punctuation: bool,
+
     /// Enable debugging options with comma separated
     /// values - source_text and text_oveflow are available
     #[arg(short = 'd', long = "debug", verbatim_doc_comment)]
@@ -72,6 +76,7 @@ fn main() -> color_eyre::Result<()> {
         args.render_lines,
         args.padding,
         args.width_percent,
+        args.with_punctuation,
         debug_flags,
     );
 

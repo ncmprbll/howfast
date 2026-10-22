@@ -42,6 +42,7 @@ pub struct Coordinator {
     width_percent: u8,
     cursor_scroll_line_offset: usize,
     ends_at: Instant,
+    with_punctuation: bool,
 
     exit: bool,
     started: bool,
@@ -72,6 +73,7 @@ impl Default for Coordinator {
             debug_flags: Default::default(),
             correct_keystrokes: Default::default(),
             incorrect_keystrokes: Default::default(),
+            with_punctuation: Default::default(),
         }
     }
 }
@@ -91,16 +93,13 @@ impl Coordinator {
         render_lines: usize,
         padding: u16,
         width_percent: u8,
+        with_punctuation: bool,
         debug_flags: impl Into<DebugFlags>,
     ) -> Self {
-        let target = dictionary
-            .get_random_words_with_punctuation(Self::REQUEST_WORDS)
-            .join(" ");
-
-        Self {
+        let mut coordinator = Self {
             dictionary,
-            source: String::with_capacity(target.len()),
-            target,
+            source: String::new(),
+            target: String::new(),
             typing_time: Duration::from_secs(typing_time_secs),
             render_lines,
             render_lines_threshold: render_lines + 1,
@@ -114,6 +113,22 @@ impl Coordinator {
             debug_flags: debug_flags.into(),
             correct_keystrokes: 0,
             incorrect_keystrokes: 0,
+            with_punctuation,
+        };
+
+        let target = coordinator.get_random_words(Self::REQUEST_WORDS).join(" ");
+
+        coordinator.source = String::with_capacity(target.len());
+        coordinator.target = target;
+
+        coordinator
+    }
+
+    fn get_random_words(&self, how_many: usize) -> Vec<String> {
+        if self.with_punctuation {
+            self.dictionary.get_random_words_with_punctuation(how_many)
+        } else {
+            self.dictionary.get_random_words(how_many)
         }
     }
 
@@ -128,10 +143,7 @@ impl Coordinator {
             }
 
             if self.need_more_lines {
-                let additional_text = self
-                    .dictionary
-                    .get_random_words_with_punctuation(Self::REQUEST_WORDS)
-                    .join(" ");
+                let additional_text = self.get_random_words(Self::REQUEST_WORDS).join(" ");
                 self.target += &(" ".to_string() + &additional_text);
                 self.need_more_lines = false;
 

@@ -26,7 +26,7 @@ pub struct Dictionary {
 impl Dictionary {
     // How many words must pass before a chance to spawn
     // another punctuation character is rolled
-    const PUNCTUATION_WORD_DISTANCE: usize = 5;
+    const PUNCTUATION_WORD_DISTANCE: usize = 4;
     const PUNCTUATION_CHARACTERS_APPENDED: &[Punctuation] = &[
         Punctuation::Append(','),
         Punctuation::Append(';'),
@@ -57,13 +57,13 @@ impl Dictionary {
         Ok(Self::from(words))
     }
 
-    fn get_random_words_iter(&self, how_many: usize) -> impl Iterator<Item = &str> {
+    fn get_random_words_iter(&self, how_many: usize) -> impl Iterator<Item = String> {
         (0..how_many)
             .filter_map(|_| self.words.iter().choose(&mut rand::rng()))
-            .map(|x| x.as_str())
+            .map(|x| x.clone())
     }
 
-    pub fn get_random_words(&self, how_many: usize) -> Vec<&str> {
+    pub fn get_random_words(&self, how_many: usize) -> Vec<String> {
         self.get_random_words_iter(how_many).collect()
     }
 
