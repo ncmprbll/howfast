@@ -4,6 +4,18 @@ use std::{
     io::{BufRead, BufReader, Error},
 };
 
+enum Punctuation {
+    // Append this character to a word
+    Append(char),
+    // Append this character to a word and
+    // capitalize next word
+    AppendCapitalizeNext(char),
+    // Split words with this character
+    Split(char),
+    // Wrap the word within these characters
+    Wrap(char, char),
+}
+
 #[derive(Debug, Default)]
 pub struct Dictionary {
     words: Vec<String>,
@@ -13,7 +25,16 @@ impl Dictionary {
     // How many words must pass before a chance to spawn
     // another punctuation character is rolled
     const PUNCTUATION_WORD_DISTANCE: usize = 4;
-    const PUNCTUATION_CHARACTERS_APPENDED: &[char] = &['.', ',', ';'];
+    const PUNCTUATION_CHARACTERS_APPENDED: &[Punctuation] = &[
+        Punctuation::Append(','),
+        Punctuation::Append(';'),
+        Punctuation::AppendCapitalizeNext('.'),
+        Punctuation::AppendCapitalizeNext('!'),
+        Punctuation::AppendCapitalizeNext('?'),
+        Punctuation::Split('-'),
+        Punctuation::Wrap('"', '"'),
+        Punctuation::Wrap('(', ')'),
+    ];
 
     pub fn from<T, K>(iter: T) -> Self
     where
@@ -44,7 +65,7 @@ impl Dictionary {
     }
 
     pub fn get_random_words_with_punctuation(&self, how_many: usize) -> Vec<String> {
-        let mut must_capitalize = false;
+        let mut must_capitalize = true;
         let mut words_accumulator = 0;
         let mut result = Vec::with_capacity(how_many);
 
@@ -53,26 +74,38 @@ impl Dictionary {
                 .iter()
                 .choose(&mut rand::rng());
 
-            if words_accumulator <= Self::PUNCTUATION_WORD_DISTANCE {
-                words_accumulator += 1;
+            if words_accumulator <= Self::PUNCTUATION_WORD_DISTANCE || random_appended.is_none() {
+                words_accumulator = words_accumulator.wrapping_add(1);
                 result.push(x.to_string());
                 return;
             }
 
-            if let Some(random_appended) = Self::PUNCTUATION_CHARACTERS_APPENDED
-                .iter()
-                .choose(&mut rand::rng())
-            {
-                let mut word = x.to_string();
-                word.push(*random_appended);
-                words_accumulator = 0;
-                result.push(word);
-                return;
-            }
+            let random_appended = random_appended.unwrap(); // Not none here
+            words_accumulator = 0;
+            let mut word = x.to_string();
 
-            words_accumulator += 1;
-            result.push(x.to_string());
-            return;
+            match random_appended {
+                Punctuation::Append(c) => {
+                    word.push(*c);
+                    result.push(word);
+                }
+                Punctuation::AppendCapitalizeNext(c) => {
+                    word.push(*c);
+                    result.push(word);
+                    must_capitalize = true;
+                }
+                Punctuation::Split(c) => {
+                    result.push(word);
+                    result.push(c.to_string());
+                }
+                Punctuation::Wrap(l, r) => {
+                    let mut wrapped = String::with_capacity(word.len() + 2);
+                    wrapped.push(*l);
+                    wrapped += &word;
+                    wrapped.push(*r);
+                    result.push(wrapped);
+                }
+            }
         });
 
         result
