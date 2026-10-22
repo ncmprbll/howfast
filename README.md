@@ -16,6 +16,8 @@ Options:
           Universal padding from all sides [default: 1]
   -w, --width-percent <WIDTH_PERCENT>
           How wide should the typing area be in percent (1 to 100) [default: 50]
+  -g, --with-punctuation
+          Enable punctuation
   -d, --debug <DEBUG_FLAGS>
           Enable debugging options with comma separated
           values - source_text and text_oveflow are available
