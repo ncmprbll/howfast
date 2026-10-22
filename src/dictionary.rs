@@ -4,6 +4,8 @@ use std::{
     io::{BufRead, BufReader, Error},
 };
 
+use capitalize::Capitalize;
+
 enum Punctuation {
     // Append this character to a word
     Append(char),
@@ -24,7 +26,7 @@ pub struct Dictionary {
 impl Dictionary {
     // How many words must pass before a chance to spawn
     // another punctuation character is rolled
-    const PUNCTUATION_WORD_DISTANCE: usize = 4;
+    const PUNCTUATION_WORD_DISTANCE: usize = 5;
     const PUNCTUATION_CHARACTERS_APPENDED: &[Punctuation] = &[
         Punctuation::Append(','),
         Punctuation::Append(';'),
@@ -32,6 +34,7 @@ impl Dictionary {
         Punctuation::AppendCapitalizeNext('!'),
         Punctuation::AppendCapitalizeNext('?'),
         Punctuation::Split('-'),
+        Punctuation::Wrap('\'', '\''),
         Punctuation::Wrap('"', '"'),
         Punctuation::Wrap('(', ')'),
     ];
@@ -74,9 +77,17 @@ impl Dictionary {
                 .iter()
                 .choose(&mut rand::rng());
 
-            if words_accumulator <= Self::PUNCTUATION_WORD_DISTANCE || random_appended.is_none() {
+            if words_accumulator <= Self::PUNCTUATION_WORD_DISTANCE
+                || random_appended.is_none()
+                || rand::random::<bool>()
+            {
                 words_accumulator = words_accumulator.wrapping_add(1);
-                result.push(x.to_string());
+                result.push(if must_capitalize {
+                    must_capitalize = false;
+                    x.to_string().capitalize()
+                } else {
+                    x.to_string()
+                });
                 return;
             }
 
