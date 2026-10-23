@@ -28,4 +28,4 @@ Options:
 ```
 
 # Showcase
-<img width="1470" height="702" alt="howfast" src="https://github.com/user-attachments/assets/2169131a-2cee-4e12-b9c8-5de766717b68" />
+<img width="1460" height="692" alt="howfast_v3" src="https://github.com/user-attachments/assets/7a347fb4-206a-4e1f-ade3-b758f096494d" />
